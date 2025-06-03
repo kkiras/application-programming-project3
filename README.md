@@ -12,6 +12,6 @@ pip install fastapi
 pip install uvicorn  
 
 ## OpenAI Agents SDK requirements:
-python -m venv project3
-venv\Scripts\activate
-pip install -r requirements.txt
+python -m venv project3  
+venv\Scripts\activate  
+pip install -r requirements.txt  
