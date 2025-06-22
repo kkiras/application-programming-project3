@@ -1,7 +1,12 @@
+# uvicorn main:app --reload
+# pnpm dev
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from quiz_creator import generate_questions
+from firebase_config import database
 import json
+
 
 app = FastAPI()
 
@@ -36,3 +41,13 @@ def get_item(item_id: int) -> Item:
 async def get_questions():
     questions = await generate_questions()
     return questions
+
+@app.get("/questions")
+def get_questions_from_db():
+    questions_ref = database.child("Questions")
+    questions = questions_ref.get()
+    
+    if questions:
+        return [value for key, value in questions.items()]
+    else:
+        return []

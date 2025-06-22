@@ -38,30 +38,11 @@ agent = Agent(
     )
 )
 
-# result = Runner.run_sync(agent, "Help me create 5 general knowledge questions. Output only the array list.")
-# print(result.final_output)
-# output = result.final_output.strip()
-
-# # Remove Python code block markers if present:
-# if output.startswith("```") and output.endswith("```"):
-#     output = "\n".join(output.split("\n")[1:-1])  # Remove first and last lines
-
-# try:
-#     questionArray = json.loads(output)
-# except json.JSONDecodeError as e:
-#     print("JSON decode error:", e)
-#     # Optionally print raw output for debugging
-#     print(output)
-#     raise
-# else:
-#     print(questionArray)
-
 async def generate_questions():
     result = await Runner.run(agent, "Help me create 5 general knowledge questions. Output only the array list.")
+    print(result.final_output)  # Debugging line to see the raw output
     raw_output = result.final_output.strip()
     clean_output = re.sub(r"<think>.*?</think>\s*", "", raw_output, flags=re.DOTALL)
-    # if output.startswith("```") and output.endswith("```"):
-    #     output = "\n".join(output.split("\n")[1:-1])
 
     try:
         return json.loads(clean_output)
