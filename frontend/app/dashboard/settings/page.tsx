@@ -12,7 +12,6 @@ import { Switch } from "@/components/ui/switch";
 
 export default function Page() {
     const [settings, setSettings] = useState({
-
         questionCount: 5
     })
     const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -44,7 +43,7 @@ export default function Page() {
                                 <Button
                                     id="upload-avatar-button"
                                     variant="outline"
-                                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                                    className="bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-700"
                                     onClick={openDialog}
                                 >
                                     <ArrowUpFromLine />
@@ -58,14 +57,14 @@ export default function Page() {
 
                 <Card className="bg-gray-800/50 border-purple-500/30">
                     <CardHeader>
-                        <CardTitle className="text-white">Cài đặt bài thi</CardTitle>
+                        <CardTitle className="text-white">Cài đặt chung</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div>
                             <Label className="text-white mb-2" htmlFor="question-count">
                                 Số câu hỏi mặc định
                             </Label>
-                            <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-4 mt-2">
                                 <Input
                                     id="question-count"
                                     type="number"
@@ -78,15 +77,8 @@ export default function Page() {
                                 <span className="text-gray-400">Từ 5 đến 10 câu hỏi</span>
                             </div>
                         </div>
-                    </CardContent>
-                </Card>
 
-                <Card className="bg-gray-800/50 border-purple-500/30">
-                    <CardHeader>
-                        <CardTitle className="text-white">Cài đặt chức năng</CardTitle>
-                    </CardHeader>
-                    <CardContent >
-                        <div className="grid gap-6">
+                        <div className="grid gap-6 mt-6">
                             <div className="flex items-center justify-between">
                                 <Label className="text-white font-medium" htmlFor="function-a">
                                     Chức năng A
