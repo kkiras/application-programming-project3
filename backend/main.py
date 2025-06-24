@@ -1,6 +1,7 @@
 # uvicorn main:app --reload
 # pnpm dev
 
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from quiz_creator import generate_questions
@@ -9,6 +10,14 @@ import json
 
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 class Item(BaseModel):
     text: str # Required field
