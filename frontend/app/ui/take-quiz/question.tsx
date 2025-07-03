@@ -11,7 +11,7 @@ interface QuestionProps {
 
 export default function Question({ num, question, answers, answered }: QuestionProps) {
     useEffect(() => {
-        setSelectedAnswer(""); // reset mỗi khi num thay đổi
+        setSelectedAnswer("");
     }, [num]);
 
     const [selectedAnswer, setSelectedAnswer] = useState("");
