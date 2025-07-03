@@ -20,7 +20,7 @@ export default function Page() {
     };
     return (
         <div>
-            <h1 className="text-white">Cài đặt</h1>
+            <h1 className="text-white text-4xl mb-8 font-bold">Cài đặt</h1>
 
             <div className="space-y-6">
                 <Card className="bg-gray-800/50 border-purple-500/30">

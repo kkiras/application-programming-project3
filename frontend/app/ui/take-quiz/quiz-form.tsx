@@ -1,6 +1,9 @@
 'use client';
 import { useState } from "react";
 import Question from "./question";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ChevronRight } from "lucide-react";
 
 interface QuestionData {
     num: number;
@@ -89,18 +92,30 @@ export default function QuizForm() {
     const current = questions[currentIndex];
 
     return (
-        <div>
-            <Question
-                num={currentIndex + 1}
-                question={current.question}
-                answers={current.answers}
-                answered={handleAnswered}
-            />
-            {current === questions[questions.length - 1] ? (
-                <button onClick={handleNext}>Finish Quiz</button>
-            ) : (
-                <button onClick={handleNext}>Next</button>
-            )}
+        <div className="flex-1 flex items-center justify-center p-8">
+            <Card className="bg-gray-800/50 border-purple-500/30 max-w-4xl w-full">
+                <CardContent className="p-8">
+                    <Question
+                        num={currentIndex + 1}
+                        question={current.question}
+                        answers={current.answers}
+                        answered={handleAnswered}
+                    />
+
+                    <div className="flex justify-end">
+                        <Button
+                            disabled={work[currentIndex + 1] === ""}
+                            onClick={handleNext}
+                            className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 text-lg pb-3.5"
+                            size="lg"
+
+                        >
+                            {currentIndex === questions.length - 1 ? "Hoàn thành" : "Tiếp tục"}
+                            <ChevronRight className="w-4 h-4" />
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
 
     );

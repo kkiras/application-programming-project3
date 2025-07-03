@@ -17,7 +17,7 @@ const links = [
   { name: 'Home', href: '/dashboard', icon: HomeIcon },
   {
     name: 'Take Quiz',
-    href: '/dashboard/take-quiz',
+    href: '/dashboard/ready-to-do',
     icon: DocumentDuplicateIcon,
   },
   { name: 'Create Quiz', href: '/dashboard/create-quiz', icon: UserGroupIcon },
