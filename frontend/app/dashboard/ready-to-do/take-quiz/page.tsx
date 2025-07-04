@@ -1,9 +1,41 @@
+'use client';
 import QuizForm from "@/app/ui/take-quiz/quiz-form"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import clsx from "clsx"
 import { X } from "lucide-react"
+import { useEffect, useState } from "react"
 
 export default function Page() {
+    const defaultTimeLeft = 10;
+    const [currentQuestion, setCurrentQuestion] = useState(0);
+    const [questionTimeLeft, setQuestionTimeLeft] = useState(defaultTimeLeft);
+    const [trigger, setTrigger] = useState(false);
+
+    useEffect(() => {
+        console.log("Câu hỏi mới:", currentQuestion + 1);
+        const questionTimer = setInterval(() => {
+            setQuestionTimeLeft(prev => {
+                if (prev <= 0) {
+                    setTrigger(true);
+                    clearInterval(questionTimer);
+                    setTimeout(() => setTrigger(false), 100);
+                    return defaultTimeLeft;
+                }
+                return prev - 1;
+            });
+        }, 1000)
+        return () => {
+            clearInterval(questionTimer)
+            setQuestionTimeLeft(defaultTimeLeft);
+        };
+    }, [currentQuestion]);
+
+    const setIndex = (index: number) => {
+        setCurrentQuestion(index);
+
+    }
+
     return (
         <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-purple-900 to-gray-800 flex flex-col">
             {/* Header */}
@@ -29,6 +61,17 @@ export default function Page() {
                                 {/* Placeholder for timer */}
                             </div>
                         </div>
+                        <div>
+                            <span className="text-sm text-gray-300">Thời gian câu hỏi</span>
+                            <div
+                                className={clsx(
+                                    'text-xl font-bold',
+                                    questionTimeLeft <= 10 ? 'text-red-400' : 'text-yellow-400'
+                                )}
+                            >
+                                {questionTimeLeft}s
+                            </div>
+                        </div>
                         <Button
                             variant="ghost"
                             className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
@@ -41,7 +84,11 @@ export default function Page() {
                 </div>
             </div>
 
-            <QuizForm />
+            <QuizForm
+                trigger={trigger}
+                currentIndex={currentQuestion}
+                setIndex={setIndex}
+            />
 
         </div>
 

@@ -1,15 +1,22 @@
 'use client';
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Question from "./question";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface QuestionData {
     num: number;
     question: string;
     answers: string[];
     correctAnswer: string;
+}
+
+interface QuizFormProps {
+    currentIndex: number;
+    setIndex: (index: number) => void;
+    trigger: boolean;
 }
 
 const questions: QuestionData[] = [
@@ -45,8 +52,13 @@ const questions: QuestionData[] = [
     }
 ];
 
-export default function QuizForm() {
-    const [currentIndex, setCurrentIndex] = useState(0);
+export default function QuizForm({ currentIndex, setIndex, trigger }: QuizFormProps) {
+    const router = useRouter();
+    useEffect(() => {
+        if (trigger) {
+            handleNext();
+        }
+    }, [trigger]);
 
     const [work, setWork] = useState<{ [key: number]: string }>(() =>
         questions.reduce((acc, _, index) => {
@@ -68,10 +80,11 @@ export default function QuizForm() {
     }
 
     const handleNext = () => {
-        setCurrentIndex(prev => prev + 1);
         if (currentQuestion === questions[questions.length - 1]) {
             handleFinish();
+            return;
         }
+        setIndex(currentIndex + 1);
     }
 
     const handleFinish = () => {
@@ -85,7 +98,8 @@ export default function QuizForm() {
             }
         }
         const score = (correctAnswers / numQuestions) * 10.0;
-        alert(`You answered ${correctAnswers} out of ${numQuestions} questions correctly. Your score is ${score}`);
+
+        router.push(`/dashboard/ready-to-do/result?score=${score}`)
 
     }
 

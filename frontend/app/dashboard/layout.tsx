@@ -6,7 +6,6 @@ import BackgroundMusic from '@/components/music/BackgroundMusic';
 export default function Layout({ children }: { children: React.ReactNode }) {
     const pathName = usePathname();
     const isTakeQuizPage = pathName.startsWith('/dashboard/ready-to-do/take-quiz');
-    console.log(children)
     return (
         <div>
             {!isTakeQuizPage ? (
