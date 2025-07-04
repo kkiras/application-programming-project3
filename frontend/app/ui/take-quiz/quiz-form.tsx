@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Question from "./question";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -81,11 +81,21 @@ export default function QuizForm({ currentIndex, setIndex, trigger }: QuizFormPr
 
     const handleNext = () => {
         if (currentQuestion === questions[questions.length - 1]) {
+            playSubmitSound();
             handleFinish();
             return;
         }
+        playNextSound();
         setIndex(currentIndex + 1);
     }
+
+    const playNextSound = useCallback(() => {
+        const sound = new Howl({
+            src: ['/next-question.mp3'],
+            volume: 0.5,
+        });
+        sound.play();
+    }, []);
 
     const handleFinish = () => {
         const numQuestions = questions.length;
@@ -102,6 +112,14 @@ export default function QuizForm({ currentIndex, setIndex, trigger }: QuizFormPr
         router.push(`/dashboard/ready-to-do/result?score=${score}`)
 
     }
+
+    const playSubmitSound = useCallback(() => {
+        const sound = new Howl({
+            src: ['/submit.mp3'],
+            volume: 0.5,
+        });
+        sound.play();
+    }, []);
 
     const currentQuestion = questions[currentIndex];
 
