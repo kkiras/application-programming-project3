@@ -1,7 +1,8 @@
 'use client';
 
 import clsx from "clsx";
-import { useState, useEffect } from "react";
+import { Howl } from "howler";
+import { useState, useEffect, useCallback } from "react";
 
 interface QuestionProps {
     num: number;
@@ -17,9 +18,34 @@ export default function Question({ num, question, answers, answered }: QuestionP
 
     const [selectedAnswer, setSelectedAnswer] = useState(-1);
     const handleAnswerSelected = (index: number) => {
+        if (selectedAnswer == index) {
+            setSelectedAnswer(-1);
+            answered([num, ""]);
+            playSoundUnselected();
+            return;
+        }
         setSelectedAnswer(index);
         answered([num, answers[index]]);
+        playSound();
     }
+
+    const playSound = useCallback(() => {
+        const sound = new Howl({
+            src: ['/answer-click.mp3'],
+            volume: 0.5,
+        })
+
+        sound.play();
+    }, [])
+
+    const playSoundUnselected = useCallback(() => {
+        const sound = new Howl({
+            src: ['/answer-unselect.mp3'],
+            volume: 0.5,
+        })
+
+        sound.play();
+    }, [])
 
     return (
         <div >

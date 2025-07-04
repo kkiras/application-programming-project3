@@ -69,7 +69,7 @@ export default function QuizForm() {
 
     const handleNext = () => {
         setCurrentIndex(prev => prev + 1);
-        if (current === questions[questions.length - 1]) {
+        if (currentQuestion === questions[questions.length - 1]) {
             handleFinish();
         }
     }
@@ -89,7 +89,7 @@ export default function QuizForm() {
 
     }
 
-    const current = questions[currentIndex];
+    const currentQuestion = questions[currentIndex];
 
     return (
         <div className="flex-1 flex items-center justify-center p-8">
@@ -97,8 +97,8 @@ export default function QuizForm() {
                 <CardContent className="p-8">
                     <Question
                         num={currentIndex + 1}
-                        question={current.question}
-                        answers={current.answers}
+                        question={currentQuestion.question}
+                        answers={currentQuestion.answers}
                         answered={handleAnswered}
                     />
 
