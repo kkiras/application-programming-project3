@@ -3,17 +3,40 @@ import { AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar } from "@radix-ui/react-avatar";
-import { useRef, useState } from "react";
-import { ArrowUpFromLine, Save } from 'lucide-react';
+import { useEffect, useRef, useState } from "react";
+import { ArrowUpFromLine, Save, User } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
 
 export default function Page() {
-    const [settings, setSettings] = useState({
-        questionCount: 5
-    })
+    type GeneralSettingKey = 'backgroundMusic' | 'soundEffects' | 'questionTimer';
+
+    const baseSettings = {
+        questionCount: 5,
+        backgroundMusic: true,
+        soundEffects: true,
+        questionTimer: true,
+    };
+
+    const [generalSettings, setGeneralSettings] = useState({
+        questionCount: 5,
+        backgroundMusic: true,
+        soundEffects: true,
+        questionTimer: true,
+    });
+
+    useEffect(() => {
+        console.log("General settings updated:", generalSettings);
+    }, [generalSettings]);
+
+    const settingsOptions: { key: GeneralSettingKey; label: string }[] = [
+        { key: 'backgroundMusic', label: 'Nhạc nền' },
+        { key: 'soundEffects', label: 'Âm thanh tương tác' },
+        { key: 'questionTimer', label: 'Bộ đếm thời gian câu hỏi' },
+    ]
+    const isAvatar = false; // Placeholder for avatar check, replace with actual logic
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const openDialog = () => {
         fileInputRef.current?.click();
@@ -25,20 +48,27 @@ export default function Page() {
             <div className="space-y-6">
                 <Card className="bg-gray-800/50 border-purple-500/30">
                     <CardHeader>
-                        <CardTitle className="text-white">Thông tin cá nhân</CardTitle>
+                        <CardTitle className="text-2xl font-semibold text-white">Thông tin cá nhân</CardTitle>
                     </CardHeader>
 
                     <CardContent>
                         <div className="flex items-center gap-4">
-                            <Avatar className="w-20 h-20">
-                                <AvatarImage
-                                    src=""
-                                    alt=""
-                                />
-                                <AvatarFallback></AvatarFallback>
-                            </Avatar>
+                            {!isAvatar ? (
+                                <div className="w-20 h-20 rounded-full overflow-hidden bg-purple-600 flex items-center justify-center">
+                                    <User color="#ffffff" className="w-11 h-11 object-cover color-white" />
+                                </div>
+                            ) : (
+                                <Avatar className="w-20 h-20">
+                                    <AvatarImage
+                                        src=""
+                                        alt=""
+                                    />
+                                    <AvatarFallback></AvatarFallback>
+                                </Avatar>
+                            )}
+
                             <div>
-                                <h2 className="text-white font-medium mb-2">User</h2>
+                                <h2 className="text-white font-medium mb-2 text-lg">User</h2>
                                 <input id="fileID" type="file" ref={fileInputRef} hidden />
                                 <Button
                                     id="upload-avatar-button"
@@ -57,11 +87,11 @@ export default function Page() {
 
                 <Card className="bg-gray-800/50 border-purple-500/30">
                     <CardHeader>
-                        <CardTitle className="text-white">Cài đặt chung</CardTitle>
+                        <CardTitle className="text-2xl font-semibold text-white">Cài đặt chung</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div>
-                            <Label className="text-white mb-2" htmlFor="question-count">
+                            <Label className="text-white mb-2 text-base" htmlFor="question-count">
                                 Số câu hỏi mặc định
                             </Label>
                             <div className="flex items-center space-x-4 mt-2">
@@ -70,76 +100,59 @@ export default function Page() {
                                     type="number"
                                     min="5"
                                     max="10"
-                                    value={settings.questionCount}
-                                    onChange={() => { }}
+                                    value={generalSettings.questionCount}
+                                    onChange={(e) => {
+                                        const raw = e.target.value;
+                                        const parsed = parseInt(raw, 10);
+
+                                        if (!isNaN(parsed) && parsed <= 10) {
+                                            setGeneralSettings((prev) => ({
+                                                ...prev,
+                                                questionCount: parsed,
+                                            }));
+                                        }
+                                    }}
                                     className="w-16 bg-gray-700 border-gray-600 text-white"
                                 />
                                 <span className="text-gray-400">Từ 5 đến 10 câu hỏi</span>
                             </div>
                         </div>
 
-                        <div className="grid gap-6 mt-6">
-                            <div className="flex items-center justify-between">
-                                <Label className="text-white font-medium" htmlFor="function-a">
-                                    Chức năng A
-                                </Label>
-                                <Switch
-                                    id="function-a"
-                                    checked={true}
-                                    onCheckedChange={() => { }}
+                        <div className="grid gap-7 mt-8">
+                            {settingsOptions.map(option => (
+                                <div className="flex items-center justify-between" key={option.key}>
+                                    <Label className="text-white text-base" htmlFor={option.key}>
+                                        {option.label}
+                                    </Label>
+                                    <Switch
+                                        id="background-music"
+                                        checked={generalSettings[option.key]}
+                                        onCheckedChange={() => {
+                                            setGeneralSettings((prev) => (
+                                                { ...prev, [option.key]: !prev[option.key] }
+                                            ))
+                                        }}
+                                        className="data-[state=checked]:bg-purple-700 data-[state=unchecked]:bg-gray-500"
 
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                                <Label className="text-white font-medium" htmlFor="function-a">
-                                    Chức năng A
-                                </Label>
-                                <Switch
-                                    id="function-a"
-                                    checked={true}
-                                    onCheckedChange={() => { }}
-
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                                <Label className="text-white font-medium" htmlFor="function-a">
-                                    Chức năng A
-                                </Label>
-                                <Switch
-                                    id="function-a"
-                                    checked={true}
-                                    onCheckedChange={() => { }}
-
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                                <Label className="text-white font-medium" htmlFor="function-a">
-                                    Chức năng A
-                                </Label>
-                                <Switch
-                                    id="function-a"
-                                    checked={true}
-                                    onCheckedChange={() => { }}
-
-                                />
-                            </div>
-
+                                    />
+                                </div>
+                            ))}
                         </div>
                     </CardContent>
                 </Card>
 
                 <div className="flex justify-end">
-                    <Button className="bg-purple-600 text-white hover:bg-purple-700 px-8">
+                    <Button
+                        disabled={JSON.stringify(generalSettings) === JSON.stringify(baseSettings)}
+                        className="bg-purple-600 text-white hover:bg-purple-700 px-8"
+                    >
                         <Save className="w-4 h-4 mr-2" />
                         Lưu cài đặt
                     </Button>
                 </div>
             </div>
 
-        </div>
+        </div >
 
 
     )

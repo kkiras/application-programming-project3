@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import clsx from "clsx";
@@ -17,10 +18,21 @@ export default function Page() {
         correctAnswer: string;
     }
     const [question, setQuestion] = useState("");
-    const [answers, setAnswers] = useState(["", "", "", ""]);
+    const [answers, setAnswers] = useState<string[]>(["", "", "", ""]);
+
+    const [questionType, setQuestionType] = useState("four-answers");
 
     const [aiQuestionCount, setAiQuestionCount] = useState(5);
     const [aiQuestions, setAiQuestions] = useState<Question[]>([]);
+
+    const handleQuestionTypeChange = (value: string) => {
+        setQuestionType(value);
+        if (value === "four-answers") {
+            setAnswers(["", "", "", ""]);
+        } else if (value === "true-false") {
+            setAnswers(["Đúng", "Sai"]);
+        }
+    }
 
     const handleAnswerChange = (index: number, value: string) => {
         const newAnswers = [...answers];
@@ -45,6 +57,9 @@ export default function Page() {
             }
         } catch (error) {
             console.error("Error generating questions:", error);
+            if (error instanceof Error && error.message === "Failed to fetch") {
+                alert(`Lỗi: Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng hoặc máy chủ.`);
+            }
         }
     }
     return (
@@ -63,9 +78,43 @@ export default function Page() {
                                 Thông tin câu hỏi
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-6">
+                        <CardContent className="space-y-8">
                             <div>
-                                <Label htmlFor="question" className="">
+                                <Label className="text-xl font-semibold mb-4 block">
+                                    Loại câu hỏi
+                                </Label>
+                                <RadioGroup
+                                    className="flex space-x-8"
+                                    value={questionType}
+                                    onValueChange={handleQuestionTypeChange}
+                                >
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem
+                                            id="four-answers"
+                                            value="four-answers"
+                                            className="border-purple-700 [&_svg]:fill-purple-700"
+                                        />
+                                        <Label htmlFor="four-answers" className="text-gray-300 text-base">
+                                            Bốn đáp án
+                                        </Label>
+                                    </div>
+
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem
+                                            id="true-false"
+                                            value="true-false"
+                                            className="border-purple-700 [&_svg]:fill-purple-700"
+
+                                        />
+                                        <Label htmlFor="true-false" className="text-gray-300 text-base">
+                                            Đúng/Sai
+                                        </Label>
+                                    </div>
+                                </RadioGroup>
+                            </div>
+
+                            <div>
+                                <Label htmlFor="question" className="text-base">
                                     Câu hỏi
                                 </Label>
                                 <Textarea
@@ -73,35 +122,57 @@ export default function Page() {
                                     value={question}
                                     placeholder="Nhập câu hỏi"
                                     onChange={(e) => setQuestion(e.target.value)}
-                                    className="bg-gray-700 border-gray-600 placeholder-gray-400 mt-2"
+                                    className="bg-gray-700 border-gray-600 placeholder-gray-400 mt-2 py-3"
                                     rows={3}
                                 />
                             </div>
 
                             <div>
-                                <Label>
+                                <Label className="text-base">
                                     Đáp án
-                                    <span> *Chọn 1 đáp án đúng</span>
+                                    <span className="text-gray-400/60"> *Chọn 1 đáp án đúng</span>
                                 </Label>
                                 <div className="space-y-3 mt-3">
                                     {answers.map((ans, index) => (
-                                        <div className="flex items-center space-x-3" key={index}>
-                                            <input
-                                                id={`answer-${index}`}
-                                                type="radio"
-                                                name="correct-answer"
+                                        questionType === "four-answers" ? (
+                                            <div className="flex items-center space-x-3" key={index}>
 
-                                            />
-                                            <Label htmlFor={`answer-${index}`}>
-                                                {["A.", "B.", "C.", "D."][index] ?? "Unknown"}
-                                            </Label>
-                                            <Input
-                                                value={ans}
-                                                onChange={(e) => handleAnswerChange(index, e.target.value)}
-                                                placeholder={`Đáp án ${["A", "B", "C", "D"][index] ?? "Unknown"}`}
-                                                className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                                            />
-                                        </div>
+                                                <input
+                                                    id={`answer-${index}`}
+                                                    type="radio"
+                                                    name="correct-answer"
+
+                                                />
+                                                <Label htmlFor={`answer-${index}`}>
+                                                    {["A.", "B.", "C.", "D."][index] ?? "Unknown"}
+                                                </Label>
+                                                <Input
+                                                    value={ans}
+                                                    onChange={(e) => handleAnswerChange(index, e.target.value)}
+                                                    placeholder={`Đáp án ${["A", "B", "C", "D"][index] ?? "Unknown"}`}
+                                                    className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 py-5"
+                                                />
+
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center space-x-3" key={index}>
+                                                <input
+                                                    id={`answer-${index}`}
+                                                    type="radio"
+                                                    name="correct-answer"
+                                                />
+                                                <Label htmlFor={`answer-${index}`}>
+                                                    {["A.", "B."][index] ?? "Unknown"}
+                                                </Label>
+                                                <Input
+                                                    value={ans}
+                                                    onChange={(e) => handleAnswerChange(index, e.target.value)}
+                                                    placeholder={`Đáp án ${["Đúng", "Sai"][index] ?? "Unknown"}`}
+                                                    className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 py-5"
+                                                    readOnly={true}
+                                                />
+                                            </div>
+                                        )
                                     ))}
                                 </div>
                             </div>
@@ -112,7 +183,7 @@ export default function Page() {
                                     className="bg-gray-600 border-gray-600 text-gray-300 hover:bg-gray-700"
                                     onClick={() => {
                                         setQuestion("");
-                                        setAnswers(["", "", "", ""]);
+                                        setAnswers(questionType === "four-answers" ? ["", "", "", ""] : ["Đúng", "Sai"]);
 
                                     }}
                                 >
