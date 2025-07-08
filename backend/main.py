@@ -6,9 +6,15 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from quiz_creator import generate_questions
 from firebase_config import database
+from firebase_admin import auth as firebase_auth
+from fastapi import Request
 import json
 
 
+import os
+print("FIREBASE_AUTH_EMULATOR_HOST:", os.environ.get("FIREBASE_AUTH_EMULATOR_HOST"))
+
+USE_FIREBASE_EMULATOR = "FIREBASE_AUTH_EMULATOR_HOST" in os.environ
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -60,3 +66,61 @@ def get_questions_from_db():
         return [value for key, value in questions.items()]
     else:
         return []
+    
+
+@app.post("/api/signup")
+async def signup(req: Request):
+    body = await req.json()
+    username = body.get("username")
+    id_token = body.get("idToken")
+    print("ID-Token", id_token)
+    # email = body.get("email")
+    # uid = body.get("uid")
+    
+    try:
+        decoded = firebase_auth.verify_id_token(id_token)
+        uid = decoded.get("uid")
+        email = decoded.get("email")   
+
+        print("UID", uid)
+        print("email", email)
+
+        account_ref = database.child("Accounts").child(uid)
+        if account_ref.get() is not None:
+            return {"message": "User already exists"}
+        
+        account_ref.set({
+            "uid": uid,
+            "username": username,
+            "email": email,
+            "personal_inf":{
+                "avatar": '',
+                "displayName": 'User',
+            },
+            "settings":{
+                "backgroundMusic": True,
+                "soundEffects": True,
+                "questionCount": 5,
+            }
+        })
+
+        return {"message": "Account created", "uid": uid, "email": email}
+    
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=401, detail="Invalid token or account creation failed")
+
+@app.post("/api/auth")
+async def verify_token(req: Request):
+    body = await req.json()
+    id_token = body.get("token")
+
+    try:
+        decoded = firebase_auth.verify_id_token(id_token)
+        uid = decoded.get("uid")
+        email = decoded.get("email")
+        return {"uid": uid, "email": email}
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+

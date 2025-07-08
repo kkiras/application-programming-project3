@@ -17,8 +17,11 @@ export default function Page() {
         answers: string[];
         correctAnswer: string;
     }
-    const [question, setQuestion] = useState("");
-    const [answers, setAnswers] = useState<string[]>(["", "", "", ""]);
+    const [question, setQuestion] = useState({
+        question: "",
+        answers: ["", "", "", ""],
+        correctAnswer: ""
+    });
 
     const [questionType, setQuestionType] = useState("four-answers");
 
@@ -26,18 +29,36 @@ export default function Page() {
     const [aiQuestions, setAiQuestions] = useState<Question[]>([]);
 
     const handleQuestionTypeChange = (value: string) => {
+        handleClearQuestion();
         setQuestionType(value);
         if (value === "four-answers") {
-            setAnswers(["", "", "", ""]);
+            setQuestion((prev) => ({
+                ...prev,
+                answers: ["", "", "", ""]
+            }));
         } else if (value === "true-false") {
-            setAnswers(["Đúng", "Sai"]);
+            setQuestion((prev) => ({
+                ...prev,
+                answers: ["Đúng", "Sai"]
+            }));
         }
     }
 
     const handleAnswerChange = (index: number, value: string) => {
-        const newAnswers = [...answers];
+        const newAnswers = [...question.answers];
         newAnswers[index] = value;
-        setAnswers(newAnswers);
+        setQuestion((prev) => ({
+            ...prev,
+            answers: newAnswers
+        }));
+    }
+
+    const handleClearQuestion = () => {
+        setQuestion({
+            question: "",
+            answers: questionType === "four-answers" ? ["", "", "", ""] : ["Đúng", "Sai"],
+            correctAnswer: ""
+        });
     }
 
     const handleGenerateQuestions = async () => {
@@ -119,9 +140,12 @@ export default function Page() {
                                 </Label>
                                 <Textarea
                                     id="question"
-                                    value={question}
+                                    value={question.question}
                                     placeholder="Nhập câu hỏi"
-                                    onChange={(e) => setQuestion(e.target.value)}
+                                    onChange={(e) => setQuestion((prev) => ({
+                                        ...prev,
+                                        question: e.target.value
+                                    }))}
                                     className="bg-gray-700 border-gray-600 placeholder-gray-400 mt-2 py-3"
                                     rows={3}
                                 />
@@ -133,15 +157,21 @@ export default function Page() {
                                     <span className="text-gray-400/60"> *Chọn 1 đáp án đúng</span>
                                 </Label>
                                 <div className="space-y-3 mt-3">
-                                    {answers.map((ans, index) => (
+                                    {question.answers.map((ans, index) => (
                                         questionType === "four-answers" ? (
                                             <div className="flex items-center space-x-3" key={index}>
-
                                                 <input
                                                     id={`answer-${index}`}
                                                     type="radio"
                                                     name="correct-answer"
-
+                                                    onChange={() => {
+                                                        setQuestion((prev => ({
+                                                            ...prev,
+                                                            correctAnswer: ans
+                                                        })));
+                                                        console.log(`Đáp án đúng: ${ans}`);
+                                                    }
+                                                    }
                                                 />
                                                 <Label htmlFor={`answer-${index}`}>
                                                     {["A.", "B.", "C.", "D."][index] ?? "Unknown"}
@@ -181,11 +211,7 @@ export default function Page() {
                                 <Button
                                     variant="outline"
                                     className="bg-gray-600 border-gray-600 text-gray-300 hover:bg-gray-700"
-                                    onClick={() => {
-                                        setQuestion("");
-                                        setAnswers(questionType === "four-answers" ? ["", "", "", ""] : ["Đúng", "Sai"]);
-
-                                    }}
+                                    onClick={handleClearQuestion}
                                 >
                                     Xóa tất cả
                                 </Button>
@@ -193,7 +219,7 @@ export default function Page() {
                                 <Button
 
                                     className="bg-purple-600 hover:bg-purple-700 text-white"
-                                    disabled={!question || answers.some((a) => !a)}
+                                    disabled={!question || question.answers.some((a) => !a) || !question.correctAnswer}
                                 >
                                     <Save className="w-4 h-4" />
                                     Thêm câu hỏi
