@@ -70,3 +70,6 @@ urllib3==2.3.0
 watchdog==6.0.0
 wrapt==1.17.2
 zipp==3.21.0
+fastapi
+uvicorn
+firebase_admin
