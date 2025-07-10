@@ -8,7 +8,7 @@ from quiz_creator import generate_questions
 from firebase_config import database
 from firebase_admin import auth as firebase_auth
 from fastapi import Request
-import json
+import time
 
 
 import os
@@ -100,6 +100,7 @@ async def signup(req: Request):
             "settings":{
                 "backgroundMusic": True,
                 "soundEffects": True,
+                "questionTimer": True,
                 "questionCount": 5,
             }
         })
@@ -116,11 +117,60 @@ async def verify_token(req: Request):
     id_token = body.get("token")
 
     try:
+        t0 = time.time()
         decoded = firebase_auth.verify_id_token(id_token)
+        print("✔ Token decoded in", time.time() - t0)
+
         uid = decoded.get("uid")
         email = decoded.get("email")
-        return {"uid": uid, "email": email}
+
+        t1 = time.time()
+        account_ref = database.child("Accounts").child(uid)
+        account_data = account_ref.get()
+        print("✔ Firebase get() took", time.time() - t1)
+
+        return {"account_data": account_data}
+
     except Exception as e:
+        print("✖ Auth error:", e)
         raise HTTPException(status_code=401, detail="Invalid token")
-    
+
+@app.put("/api/save-setting-changes")
+async def saveSettingChanges(req:Request):
+    body = await req.json()
+    changedSettings = body.get("changes")
+    uid = body.get("uid")
+    print("Changes:", changedSettings)
+    print("UID:", uid)
+
+
+    try:
+        ref = database.child("Accounts").child(uid).child("settings")
+        ref.update(changedSettings)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/add-question")
+async def addQuestion(req:Request):
+    body = await req.json()
+    question = body.get("question")
+    print("Question before:", question)
+
+    try:
+        push_ref = database.child("Questions").push({})
+        question_id = push_ref.key
+
+        print("QuestionID:", question_id)
+
+        question["id"]=question_id
+        print("Question:", question)
+        database.child("Questions").child(question_id).set(question)
+
+        return {
+            "message": "Question added successfully",
+            "id": question_id
+        }
+    except Exception as e:
+       print(str(e))
+       raise HTTPException(status_code=500, detail="Internal server error")
 

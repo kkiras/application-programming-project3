@@ -74,10 +74,31 @@ export default function Page() {
       });
 
       if (res.ok) {
-        const data = await res.json();
-        console.log("Response from backend:", data);
+        /* const account_data = await res.json() => không được vì sai cấp
+        account_data = {
+          account_data: {
+            email: "kkiras.xd@gmail.com",
+            personal_inf: { avatar: '', displayName: 'User' },
+            settings: { backgroundMusic: true, questionCount: 5, soundEffects: true },
+            uid: "sTeUnRXrH0eXVvKPGYgKy3504XB3",
+            username: ""
+          }
+        } */
+        console.time("res.json");
+        const resData = await res.json();
+        console.time("res.json");
+        const account_data = resData.account_data;
+        console.log("Response from backend:", account_data);
+        const userSettings = {
+          personal_inf: account_data.personal_inf,
+          general_settings: account_data.settings
+        }
 
+        console.log("Settings: ", userSettings)
+        localStorage.setItem('userSettings', JSON.stringify(userSettings))
         route.push('/dashboard');
+
+
       }
       else {
         const errorData = await res.json();

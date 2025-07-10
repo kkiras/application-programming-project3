@@ -1,0 +1,3 @@
+# Ignore Firebase service account key files
+serviceAccountKey.json
+serviceAccountKey*.json

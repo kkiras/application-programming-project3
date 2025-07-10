@@ -8,27 +8,29 @@ import { ArrowUpFromLine, Save, User } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useUserSettings } from "@/app/context/UserSettingContext";
+import { getAuth } from "firebase/auth";
 
 
 export default function Page() {
     type GeneralSettingKey = 'backgroundMusic' | 'soundEffects' | 'questionTimer';
 
+    const { settings: userSettings, setSettings } = useUserSettings();
+
     const baseSettings = {
-        questionCount: 5,
-        backgroundMusic: true,
-        soundEffects: true,
-        questionTimer: true,
+        questionCount: userSettings?.general_settings.questionCount as number,
+        backgroundMusic: userSettings?.general_settings.backgroundMusic as boolean,
+        soundEffects: userSettings?.general_settings.soundEffects as boolean,
+        questionTimer: userSettings?.general_settings.questionTimer as boolean,
     };
 
     const [generalSettings, setGeneralSettings] = useState({
-        questionCount: 5,
-        backgroundMusic: true,
-        soundEffects: true,
-        questionTimer: true,
+        ...baseSettings
     });
 
     useEffect(() => {
         console.log("General settings updated:", generalSettings);
+        console.log("Base settings:", baseSettings)
     }, [generalSettings]);
 
     const settingsOptions: { key: GeneralSettingKey; label: string }[] = [
@@ -41,6 +43,35 @@ export default function Page() {
     const openDialog = () => {
         fileInputRef.current?.click();
     };
+    const handleSaveChanges = async () => {
+        try {
+            const auth = getAuth();
+            const user = auth.currentUser;
+            const uid = user?.uid
+            const res = await fetch('http://localhost:8000/api/save-setting-changes', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ changes: generalSettings, uid: uid })
+            })
+
+            if (res.ok) {
+                alert("Saved successfully")
+
+                const updated = {
+                    ...userSettings,
+                    general_settings: generalSettings
+                }
+
+                localStorage.setItem('userSettings', JSON.stringify(updated));
+                setSettings(updated);
+            }
+        } catch (error: any) {
+            console.error("Lỗi không xác định:", error.message);
+        }
+
+    }
     return (
         <div>
             <h1 className="text-white text-4xl mb-8 font-bold">Cài đặt</h1>
@@ -145,6 +176,7 @@ export default function Page() {
                     <Button
                         disabled={JSON.stringify(generalSettings) === JSON.stringify(baseSettings)}
                         className="bg-purple-600 text-white hover:bg-purple-700 px-8"
+                        onClick={handleSaveChanges}
                     >
                         <Save className="w-4 h-4 mr-2" />
                         Lưu cài đặt

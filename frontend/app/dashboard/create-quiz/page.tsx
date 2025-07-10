@@ -83,6 +83,28 @@ export default function Page() {
             }
         }
     }
+
+    const handleSaveQuestion = async () => {
+        console.log(question)
+        try {
+            const res = await fetch("http://localhost:8000/api/add-question", {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ question: question })
+            })
+
+            if (res.ok) {
+                alert("Tạo câu hỏi thành công")
+            }
+
+        } catch (error) {
+            console.error("Error generating questions:", error);
+        }
+
+    }
+
     return (
         <div>
             <h1 className="text-white text-4xl mb-8 font-bold">Tạo bài quiz</h1>
@@ -170,8 +192,7 @@ export default function Page() {
                                                             correctAnswer: ans
                                                         })));
                                                         console.log(`Đáp án đúng: ${ans}`);
-                                                    }
-                                                    }
+                                                    }}
                                                 />
                                                 <Label htmlFor={`answer-${index}`}>
                                                     {["A.", "B.", "C.", "D."][index] ?? "Unknown"}
@@ -190,6 +211,13 @@ export default function Page() {
                                                     id={`answer-${index}`}
                                                     type="radio"
                                                     name="correct-answer"
+                                                    onChange={() => {
+                                                        setQuestion((prev => ({
+                                                            ...prev,
+                                                            correctAnswer: ans
+                                                        })));
+                                                        console.log(`Đáp án đúng: ${ans}`);
+                                                    }}
                                                 />
                                                 <Label htmlFor={`answer-${index}`}>
                                                     {["A.", "B."][index] ?? "Unknown"}
@@ -220,6 +248,7 @@ export default function Page() {
 
                                     className="bg-purple-600 hover:bg-purple-700 text-white"
                                     disabled={!question || question.answers.some((a) => !a) || !question.correctAnswer}
+                                    onClick={handleSaveQuestion}
                                 >
                                     <Save className="w-4 h-4" />
                                     Thêm câu hỏi

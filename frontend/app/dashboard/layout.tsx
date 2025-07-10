@@ -2,12 +2,13 @@
 import { usePathname } from 'next/navigation';
 import SideNav from '@/app/ui/dashboard/sidenav';
 import BackgroundMusic from '@/components/music/BackgroundMusic';
+import { UserSettingsProvider } from '../context/UserSettingContext';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
     const pathName = usePathname();
     const isTakeQuizPage = pathName.startsWith('/dashboard/ready-to-do/take-quiz');
     return (
-        <div>
+        <UserSettingsProvider>
             {!isTakeQuizPage ? (
                 <div className="flex h-screen flex-col md:flex-row md:overflow-hidden bg-gradient-to-br from-gray-900 via-purple-900 to-gray-800">
                     <div className="w-full flex-none md:w-64">
@@ -22,7 +23,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </div>
 
             )}
-        </div>
+        </UserSettingsProvider>
 
     );
 }
