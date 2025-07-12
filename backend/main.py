@@ -9,6 +9,7 @@ from firebase_config import database
 from firebase_admin import auth as firebase_auth
 from fastapi import Request
 import time
+import random
 
 
 import os
@@ -173,4 +174,23 @@ async def addQuestion(req:Request):
     except Exception as e:
        print(str(e))
        raise HTTPException(status_code=500, detail="Internal server error")
+    
+@app.get("/get-questions/{count}")
+def getQuestions(count: int):
+    try:
+        questions_snapshot = database.child("Questions").get()
+        
+        if not questions_snapshot:
+            return { "questions": [] }
+        
+        questions = [
+            {**val, "id": key}
+            for key, val in questions_snapshot.items()
+        ]
+        random.shuffle(questions)
+        return{ "questions": questions[:count] }
+    
+    except Exception as e:
+        print(str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 

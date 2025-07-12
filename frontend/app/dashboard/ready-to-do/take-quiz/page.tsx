@@ -1,4 +1,5 @@
 'use client';
+import { useUserSettings } from "@/app/context/UserSettingContext";
 import QuizForm from "@/app/ui/take-quiz/quiz-form"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -6,11 +7,40 @@ import clsx from "clsx"
 import { X } from "lucide-react"
 import { useEffect, useState } from "react"
 
+export interface QuestionData {
+    num: number;
+    question: string;
+    answers: string[];
+    correctAnswer: string;
+}
+
 export default function Page() {
     const defaultTimeLeft = 10;
     const [currentQuestion, setCurrentQuestion] = useState(0);
     const [questionTimeLeft, setQuestionTimeLeft] = useState(defaultTimeLeft);
     const [trigger, setTrigger] = useState(false);
+    const [questions, setQuestions] = useState<QuestionData[]>([])
+    const { settings: userSettings, setSettings } = useUserSettings();
+
+    useEffect(() => {
+        const getQuestion = async () => {
+            const count = userSettings?.general_settings.questionCount
+
+            if (!count) return
+
+            try {
+                const res = await fetch(`http://localhost:8000/get-questions/${count}`)
+                const data = await res.json()
+                const questions_data = data.questions
+                setQuestions(questions_data)
+            } catch (err) {
+                console.log(err)
+            }
+
+        }
+
+        getQuestion()
+    }, [])
 
     useEffect(() => {
         console.log("Câu hỏi mới:", currentQuestion + 1);
@@ -88,6 +118,7 @@ export default function Page() {
                 trigger={trigger}
                 currentIndex={currentQuestion}
                 setIndex={setIndex}
+                questions={questions}
             />
 
         </div>

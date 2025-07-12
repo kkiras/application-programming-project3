@@ -5,60 +5,29 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { QuestionData } from "@/app/dashboard/ready-to-do/take-quiz/page";
 
-interface QuestionData {
-    num: number;
-    question: string;
-    answers: string[];
-    correctAnswer: string;
-}
 
 interface QuizFormProps {
     currentIndex: number;
     setIndex: (index: number) => void;
     trigger: boolean;
+    questions: QuestionData[]
 }
 
-const questions: QuestionData[] = [
-    {
-        num: 1,
-        question: "What is the capital of France?",
-        answers: ["Paris", "London", "Berlin", "Madrid"],
-        correctAnswer: "Paris"
-    },
-    {
-        num: 2,
-        question: "Which planet is known as the Red Planet?",
-        answers: ["Earth", "Mars", "Jupiter", "Venus"],
-        correctAnswer: "Mars"
-    },
-    {
-        num: 3,
-        question: "Who wrote 'Hamlet'?",
-        answers: ["Charles Dickens", "Leo Tolstoy", "William Shakespeare", "Mark Twain"],
-        correctAnswer: "William Shakespeare"
-    },
-    {
-        num: 4,
-        question: "What is the largest mammal in the world?",
-        answers: ["Elephant", "Blue Whale", "Giraffe", "Hippopotamus"],
-        correctAnswer: "Blue Whale"
-    },
-    {
-        num: 5,
-        question: "Which element has the chemical symbol 'O'?",
-        answers: ["Gold", "Oxygen", "Iron", "Silver"],
-        correctAnswer: "Oxygen"
-    }
-];
+export default function QuizForm({ currentIndex, setIndex, trigger, questions }: QuizFormProps) {
 
-export default function QuizForm({ currentIndex, setIndex, trigger }: QuizFormProps) {
+    // if (!questions || questions.length === 0) {
+    //     return <p>Đang tải câu hỏi...</p>;
+    // }
+
     const router = useRouter();
     useEffect(() => {
         if (trigger) {
             handleNext();
         }
     }, [trigger]);
+
 
     const [work, setWork] = useState<{ [key: number]: string }>(() =>
         questions.reduce((acc, _, index) => {
@@ -74,10 +43,6 @@ export default function QuizForm({ currentIndex, setIndex, trigger }: QuizFormPr
         }));
 
     };
-
-    if (currentIndex >= questions.length) {
-        return <p>Đã hoàn thành. Kết quả:  </p>;
-    }
 
     const handleNext = () => {
         if (currentQuestion === questions[questions.length - 1]) {
@@ -121,7 +86,12 @@ export default function QuizForm({ currentIndex, setIndex, trigger }: QuizFormPr
         sound.play();
     }, []);
 
+    if (!questions || questions.length === 0) {
+        return <p>Đang tải câu hỏi...</p>;
+    }
+
     const currentQuestion = questions[currentIndex];
+
 
     return (
         <div className="flex-1 flex items-center justify-center p-8">
