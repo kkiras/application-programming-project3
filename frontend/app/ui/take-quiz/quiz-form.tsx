@@ -73,8 +73,9 @@ export default function QuizForm({ currentIndex, setIndex, trigger, questions }:
             }
         }
         const score = (correctAnswers / numQuestions) * 10.0;
+        const formattedScore = score.toFixed(2)
 
-        router.push(`/dashboard/ready-to-do/result?score=${score}`)
+        router.push(`/dashboard/ready-to-do/result?score=${formattedScore}`)
 
     }
 

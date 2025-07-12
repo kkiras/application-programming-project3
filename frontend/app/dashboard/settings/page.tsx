@@ -3,7 +3,7 @@ import { AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar } from "@radix-ui/react-avatar";
-import { useEffect, useRef, useState } from "react";
+import { ChangeEvent, use, useEffect, useRef, useState } from "react";
 import { ArrowUpFromLine, Save, User } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,8 @@ export default function Page() {
     type GeneralSettingKey = 'backgroundMusic' | 'soundEffects' | 'questionTimer';
 
     const { settings: userSettings, setSettings } = useUserSettings();
+    const [selectedImg, setSelectedImg] = useState<File | undefined>()
+    const [preview, setPreview] = useState<string | undefined>()
 
     const baseSettings = {
         questionCount: userSettings?.general_settings.questionCount as number,
@@ -29,6 +31,19 @@ export default function Page() {
     });
 
     useEffect(() => {
+        if (!selectedImg) {
+            setPreview(undefined)
+            return
+        }
+
+        const objectURL = URL.createObjectURL(selectedImg)
+        setPreview(objectURL)
+
+        return () => URL.revokeObjectURL(objectURL)
+
+    }, [selectedImg])
+
+    useEffect(() => {
         console.log("General settings updated:", generalSettings);
         console.log("Base settings:", baseSettings)
     }, [generalSettings]);
@@ -38,11 +53,20 @@ export default function Page() {
         { key: 'soundEffects', label: 'Âm thanh tương tác' },
         { key: 'questionTimer', label: 'Bộ đếm thời gian câu hỏi' },
     ]
-    const isAvatar = false; // Placeholder for avatar check, replace with actual logic
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const openDialog = () => {
         fileInputRef.current?.click();
     };
+
+    const handleSetImg = (e: ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) {
+            setSelectedImg(undefined)
+            return
+        }
+
+        setSelectedImg(e.target.files[0])
+    }
+
     const handleSaveChanges = async () => {
         try {
             const auth = getAuth();
@@ -72,6 +96,7 @@ export default function Page() {
         }
 
     }
+
     return (
         <div>
             <h1 className="text-white text-4xl mb-8 font-bold">Cài đặt</h1>
@@ -84,14 +109,14 @@ export default function Page() {
 
                     <CardContent>
                         <div className="flex items-center gap-4">
-                            {!isAvatar ? (
+                            {!selectedImg ? (
                                 <div className="w-20 h-20 rounded-full overflow-hidden bg-purple-600 flex items-center justify-center">
                                     <User color="#ffffff" className="w-11 h-11 object-cover color-white" />
                                 </div>
                             ) : (
-                                <Avatar className="w-20 h-20">
+                                <Avatar className="w-20 h-20 rounded-full overflow-hidden">
                                     <AvatarImage
-                                        src=""
+                                        src={preview}
                                         alt=""
                                     />
                                     <AvatarFallback></AvatarFallback>
@@ -100,7 +125,12 @@ export default function Page() {
 
                             <div>
                                 <h2 className="text-white font-medium mb-2 text-lg">User</h2>
-                                <input id="fileID" type="file" ref={fileInputRef} hidden />
+                                <input
+                                    id="fileID"
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleSetImg}
+                                    hidden />
                                 <Button
                                     id="upload-avatar-button"
                                     variant="outline"
