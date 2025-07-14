@@ -19,16 +19,9 @@ export default function Page() {
     const [selectedImg, setSelectedImg] = useState<File | undefined>()
     const [preview, setPreview] = useState<string | undefined>()
 
-    const baseSettings = {
-        questionCount: userSettings?.general_settings.questionCount as number,
-        backgroundMusic: userSettings?.general_settings.backgroundMusic as boolean,
-        soundEffects: userSettings?.general_settings.soundEffects as boolean,
-        questionTimer: userSettings?.general_settings.questionTimer as boolean,
-    };
-
-    const [generalSettings, setGeneralSettings] = useState({
-        ...baseSettings
-    });
+    const [changedSettings, setChangedSettings] = useState({
+        ...userSettings!
+    })
 
     useEffect(() => {
         if (!selectedImg) {
@@ -38,15 +31,23 @@ export default function Page() {
 
         const objectURL = URL.createObjectURL(selectedImg)
         setPreview(objectURL)
+        setChangedSettings((prev) => ({
+            ...prev,
+            personal_inf: {
+                ...prev.personal_inf,
+                avatar: objectURL
+            }
+        }))
 
         return () => URL.revokeObjectURL(objectURL)
 
     }, [selectedImg])
 
     useEffect(() => {
-        console.log("General settings updated:", generalSettings);
-        console.log("Base settings:", baseSettings)
-    }, [generalSettings]);
+        console.log("Personal settings updated:", changedSettings.personal_inf);
+        console.log("General settings updated:", changedSettings.general_settings);
+        console.log("Base settings:", userSettings)
+    }, [changedSettings]);
 
     const settingsOptions: { key: GeneralSettingKey; label: string }[] = [
         { key: 'backgroundMusic', label: 'Nhạc nền' },
@@ -65,37 +66,58 @@ export default function Page() {
         }
 
         setSelectedImg(e.target.files[0])
+
     }
 
     const handleSaveChanges = async () => {
-        try {
-            const auth = getAuth();
-            const user = auth.currentUser;
-            const uid = user?.uid
-            const res = await fetch('http://localhost:8000/api/save-setting-changes', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ changes: generalSettings, uid: uid })
-            })
+        const auth = getAuth();
+        const user = auth.currentUser;
+        const uid = user?.uid;
 
-            if (res.ok) {
-                alert("Saved successfully")
+        if (!uid) return;
 
-                const updated = {
-                    ...userSettings,
-                    general_settings: generalSettings
-                }
+        const formData = new FormData();
+        formData.append("uid", uid);
 
-                localStorage.setItem('userSettings', JSON.stringify(updated));
-                setSettings(updated);
-            }
-        } catch (error: any) {
-            console.error("Lỗi không xác định:", error.message);
+        if (selectedImg) {
+            formData.append("file", selectedImg);
         }
 
-    }
+        const isGeneralChanged = JSON.stringify(changedSettings.general_settings) !== JSON.stringify(userSettings!.general_settings);
+        if (isGeneralChanged) {
+            formData.append("general_settings", JSON.stringify(changedSettings.general_settings));
+        }
+
+        try {
+            const res = await fetch("http://localhost:8000/api/save-settings", {
+                method: "POST",
+                body: formData
+            });
+
+            if (!res.ok) throw new Error(await res.text());
+
+            const data = await res.json();
+            const saved = data.updated
+            console.log(saved)
+            alert("Saved successfully");
+
+            const updated = {
+                ...userSettings!,
+                general_settings: saved?.settings || userSettings!.general_settings,
+                personal_inf: {
+                    ...userSettings!.personal_inf,
+                    ...(saved?.personal_inf || {})
+                }
+            };
+
+            localStorage.setItem('userSettings', JSON.stringify(updated));
+            setSettings(updated);
+        } catch (err: any) {
+            console.error("Lỗi không xác định:", err.message);
+        }
+    };
+
+    console.log("Avatar src:", userSettings?.personal_inf.avatar)
 
     return (
         <div>
@@ -109,18 +131,18 @@ export default function Page() {
 
                     <CardContent>
                         <div className="flex items-center gap-4">
-                            {!selectedImg ? (
-                                <div className="w-20 h-20 rounded-full overflow-hidden bg-purple-600 flex items-center justify-center">
-                                    <User color="#ffffff" className="w-11 h-11 object-cover color-white" />
-                                </div>
-                            ) : (
+                            {(selectedImg || userSettings!.personal_inf.avatar) ? (
                                 <Avatar className="w-20 h-20 rounded-full overflow-hidden">
                                     <AvatarImage
-                                        src={preview}
+                                        src={preview || `http://localhost:8000/avatars/${userSettings?.personal_inf.avatar}`}
                                         alt=""
                                     />
                                     <AvatarFallback></AvatarFallback>
                                 </Avatar>
+                            ) : (
+                                <div className="w-20 h-20 rounded-full overflow-hidden bg-purple-600 flex items-center justify-center">
+                                    <User color="#ffffff" className="w-11 h-11 object-cover color-white" />
+                                </div>
                             )}
 
                             <div>
@@ -161,15 +183,18 @@ export default function Page() {
                                     type="number"
                                     min="5"
                                     max="10"
-                                    value={generalSettings.questionCount}
+                                    value={changedSettings.general_settings.questionCount}
                                     onChange={(e) => {
                                         const raw = e.target.value;
                                         const parsed = parseInt(raw, 10);
 
                                         if (!isNaN(parsed) && parsed <= 10) {
-                                            setGeneralSettings((prev) => ({
+                                            setChangedSettings((prev) => ({
                                                 ...prev,
-                                                questionCount: parsed,
+                                                general_settings: {
+                                                    ...prev.general_settings,
+                                                    questionCount: parsed
+                                                }
                                             }));
                                         }
                                     }}
@@ -186,11 +211,18 @@ export default function Page() {
                                         {option.label}
                                     </Label>
                                     <Switch
-                                        id="background-music"
-                                        checked={generalSettings[option.key]}
+                                        id={option.key}
+                                        checked={changedSettings.general_settings[option.key]}
                                         onCheckedChange={() => {
-                                            setGeneralSettings((prev) => (
-                                                { ...prev, [option.key]: !prev[option.key] }
+                                            setChangedSettings((prev) => (
+                                                {
+                                                    ...prev,
+                                                    general_settings: {
+                                                        ...prev.general_settings,
+                                                        [option.key]: !prev.general_settings[option.key]
+                                                    }
+
+                                                }
                                             ))
                                         }}
                                         className="data-[state=checked]:bg-purple-700 data-[state=unchecked]:bg-gray-500"
@@ -204,7 +236,7 @@ export default function Page() {
 
                 <div className="flex justify-end">
                     <Button
-                        disabled={JSON.stringify(generalSettings) === JSON.stringify(baseSettings)}
+                        disabled={JSON.stringify(userSettings) === JSON.stringify(changedSettings)}
                         className="bg-purple-600 text-white hover:bg-purple-700 px-8"
                         onClick={handleSaveChanges}
                     >

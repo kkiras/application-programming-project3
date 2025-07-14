@@ -2,20 +2,20 @@
 # pnpm dev
 
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from quiz_creator import generate_questions
 from firebase_config import database
 from firebase_admin import auth as firebase_auth
+from firebase_admin import storage
 from fastapi import Request
+from fastapi.responses import RedirectResponse
+from datetime import timedelta, datetime
 import time
+import json
 import random
+from typing import Optional
 
-
-import os
-print("FIREBASE_AUTH_EMULATOR_HOST:", os.environ.get("FIREBASE_AUTH_EMULATOR_HOST"))
-
-USE_FIREBASE_EMULATOR = "FIREBASE_AUTH_EMULATOR_HOST" in os.environ
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -136,18 +136,43 @@ async def verify_token(req: Request):
         print("✖ Auth error:", e)
         raise HTTPException(status_code=401, detail="Invalid token")
 
-@app.put("/api/save-setting-changes")
-async def saveSettingChanges(req:Request):
-    body = await req.json()
-    changedSettings = body.get("changes")
-    uid = body.get("uid")
-    print("Changes:", changedSettings)
-    print("UID:", uid)
-
-
+@app.post("/api/save-settings")
+async def save_settings(
+    uid: str = Form(...),
+    file: Optional[UploadFile] = File(None),
+    general_settings: Optional[str] = Form(None)
+):
     try:
-        ref = database.child("Accounts").child(uid).child("settings")
-        ref.update(changedSettings)
+        update_data = {}
+
+        if file:
+            if not file.filename.endswith(('.jpg', '.jpeg', '.png')):
+                raise HTTPException(status_code=400, detail="Only image files allowed.")
+            bucket = storage.bucket()
+            timestamp = int(datetime.now().timestamp())
+            path = f"avatars/{uid}/{timestamp}.jpg"
+            blob = bucket.blob(path)
+            blob.upload_from_string(await file.read(), content_type=file.content_type)
+            avatar_url = blob.generate_signed_url(expiration=timedelta(minutes=10))
+            update_data["personal_inf"] = {"avatar": f"{uid}/{timestamp}.jpg"}
+            ref = database.child("Accounts").child(uid).child("personal_inf")
+            current_personal_inf = ref.get() or {}
+
+            current_personal_inf["avatar"] = f"{uid}/{timestamp}.jpg"
+
+            database.child("Accounts").child(uid).child("personal_inf").update(current_personal_inf)
+
+        if general_settings:
+            parsed = json.loads(general_settings)
+            update_data["settings"] = parsed
+            ref = database.child("Accounts").child(uid)
+            ref.update(update_data)
+
+        return {
+            "success": True,
+            "updated": update_data
+        }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -193,4 +218,21 @@ def getQuestions(count: int):
     except Exception as e:
         print(str(e))
         raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/avatars/{filePath:path}")
+def get_user_avatar(filePath: str):
+    try:
+        path= f"avatars/{filePath}"
+        bucket= storage.bucket()
+        blob= bucket.blob(path)
+
+        if not blob.exists():
+            raise HTTPException(status_code=404, detail="Avatar file not found")
+
+        signed_url = blob.generate_signed_url(expiration=timedelta(minutes=10))
+        return RedirectResponse(signed_url)
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 

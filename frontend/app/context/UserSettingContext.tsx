@@ -1,7 +1,10 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
 type Settings = {
-    // personal_inf: { avatar: string; displayName: string };
+    personal_inf: {
+        avatar: string;
+        displayName: string
+    },
     general_settings: {
         backgroundMusic: boolean;
         soundEffects: boolean;
