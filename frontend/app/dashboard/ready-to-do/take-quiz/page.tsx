@@ -4,6 +4,7 @@ import QuizForm from "@/app/ui/take-quiz/quiz-form"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import clsx from "clsx"
+import { getAuth } from "firebase/auth";
 import { X } from "lucide-react"
 import { useEffect, useState } from "react"
 
@@ -25,11 +26,14 @@ export default function Page() {
     useEffect(() => {
         const getQuestion = async () => {
             const count = userSettings?.general_settings.questionCount
+            const auth = getAuth();
+            const user = auth.currentUser;
+            const uid = user?.uid;
 
             if (!count) return
 
             try {
-                const res = await fetch(`http://localhost:8000/get-questions/${count}`)
+                const res = await fetch(`http://localhost:8000/get-questions/${count}?uid=${uid}`)
                 const data = await res.json()
                 const questions_data = data.questions
                 setQuestions(questions_data)

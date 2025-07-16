@@ -42,6 +42,8 @@ export default function QuizForm({ currentIndex, setIndex, trigger, questions }:
             [answer[0]]: answer[1],
         }));
 
+        console.log(work)
+
     };
 
     const handleNext = () => {
@@ -74,8 +76,13 @@ export default function QuizForm({ currentIndex, setIndex, trigger, questions }:
         }
         const score = (correctAnswers / numQuestions) * 10.0;
         const formattedScore = score.toFixed(2)
-
-        router.push(`/dashboard/ready-to-do/result?score=${formattedScore}`)
+        const compare = {
+            questions: questions,
+            work: work
+        }
+        localStorage.setItem('compare', JSON.stringify(compare))
+        // router.push(`/dashboard/ready-to-do/result?score=${formattedScore}`)
+        router.push(`/dashboard/ready-to-do/result`)
 
     }
 
