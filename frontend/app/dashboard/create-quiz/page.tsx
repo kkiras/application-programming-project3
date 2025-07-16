@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import clsx from "clsx";
 import { Check, Pencil, Save, Wand2 } from "lucide-react";
 import { useState } from "react";
+import { getAuth } from "firebase/auth";
 
 export default function Page() {
     type Question = {
@@ -86,17 +87,22 @@ export default function Page() {
 
     const handleSaveQuestion = async () => {
         console.log(question)
+        const auth = getAuth();
+        const user = auth.currentUser;
+        const uid = user?.uid;
+
         try {
             const res = await fetch("http://localhost:8000/api/add-question", {
                 method: "POST",
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ question: question })
+                body: JSON.stringify({ question: question, uid: uid })
             })
 
             if (res.ok) {
-                alert("Tạo câu hỏi thành công")
+                alert("Thêm câu hỏi thành công")
+                handleClearQuestion()
             }
 
         } catch (error) {

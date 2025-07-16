@@ -14,7 +14,7 @@ from datetime import timedelta, datetime
 import time
 import json
 import random
-from typing import Optional
+from typing import Optional, List
 
 app = FastAPI()
 app.add_middleware(
@@ -31,6 +31,10 @@ class Item(BaseModel):
     is_done: bool = False # Default value is False
 
 items = []
+
+class DeleteRequest(BaseModel):
+    uid: Optional[str]
+    question_ids: List[str]
 
 @app.get("/")
 def root():
@@ -180,38 +184,52 @@ async def save_settings(
 async def addQuestion(req:Request):
     body = await req.json()
     question = body.get("question")
+    uid = body.get("uid")
     print("Question before:", question)
+    print("UID: ", uid)
 
     try:
-        push_ref = database.child("Questions").push({})
-        question_id = push_ref.key
+        timestamp = int(datetime.now().timestamp())
+        question_key = str(timestamp)
 
-        print("QuestionID:", question_id)
+        print("QuestionID:", question_key)
 
-        question["id"]=question_id
+        question["id"]=question_key
         print("Question:", question)
-        database.child("Questions").child(question_id).set(question)
+        database.child("Questions").child(uid).child(question_key).set(question)
 
         return {
             "message": "Question added successfully",
-            "id": question_id
+            "id": question_key
         }
     except Exception as e:
        print(str(e))
        raise HTTPException(status_code=500, detail="Internal server error")
     
 @app.get("/get-questions/{count}")
-def getQuestions(count: int):
+def getQuestions(count: int, uid: Optional[str] = None):
     try:
-        questions_snapshot = database.child("Questions").get()
+        questions_snapshot = database.child("Questions").child("default_questions").get()
         
         if not questions_snapshot:
-            return { "questions": [] }
+            questions_snapshot = []
         
-        questions = [
+        default_questions = [
             {**val, "id": key}
             for key, val in questions_snapshot.items()
         ]
+
+        byUser_questions = []
+        if uid:
+            questions_snapshot = database.child("Questions").child(uid).get()
+            if questions_snapshot:
+                byUser_questions = [
+                    {**val, "id": key}
+                    for key, val in questions_snapshot.items()
+                ]
+
+        questions = default_questions + byUser_questions
+
         random.shuffle(questions)
         return{ "questions": questions[:count] }
     
@@ -234,5 +252,52 @@ def get_user_avatar(filePath: str):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/get-questions-list")
+def getQuestionList(uid: Optional[str] = None):
+    try:
+        questions_snapshot = database.child("Questions").child("default_questions").get()
+        
+        if not questions_snapshot:
+            questions_snapshot = []
+        
+        default_questions = [
+            {**val, "id": key}
+            for key, val in questions_snapshot.items()
+        ]
 
+        byUser_questions = []
+        if uid:
+            questions_snapshot = database.child("Questions").child(uid).get()
+            if questions_snapshot:
+                byUser_questions = [
+                    {**val, "id": key}
+                    for key, val in questions_snapshot.items()
+                ]
+
+        return{ "default_questions": default_questions, 'user_questions': byUser_questions }
+    
+    except Exception as e:
+        print(str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.delete('/api/delete-question')
+def deleteQuestion(data: DeleteRequest):
+    try:
+        uid = data.uid
+        question_ids = data.question_ids
+        
+        if not question_ids:
+            raise HTTPException(status_code=400, detail="Danh sách câu hỏi rỗng.")
+        
+        updates = { f"{qid}": None for qid in question_ids }
+
+        ref = database.child('Questions').child(uid)
+        ref.update(updates)
+
+        return { "message": f"Đã xóa {len(question_ids)} câu hỏi." }
+    
+    except Exception as e:
+        print("✖ Delete error:", e)
+        raise HTTPException(status_code=500, detail="Xóa nhiều câu hỏi thất bại.")
 

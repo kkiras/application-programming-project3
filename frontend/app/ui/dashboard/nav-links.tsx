@@ -10,6 +10,7 @@ import clsx from 'clsx';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { getAuth, signOut } from 'firebase/auth';
+import { List } from 'lucide-react';
 
 const links = [
   { name: 'Home', href: '/dashboard', icon: HomeIcon },
@@ -20,7 +21,7 @@ const links = [
   },
   { name: 'Create Quiz', href: '/dashboard/create-quiz', icon: UserGroupIcon },
   { name: 'Settings', href: '/dashboard/settings', icon: WrenchIcon },
-  { name: 'Logout', href: '/dashboard', icon: HomeIcon }
+  { name: 'Danh sách câu hỏi', href: '/dashboard/questions-list', icon: List }
 ];
 
 export default function NavLinks() {
@@ -35,7 +36,7 @@ export default function NavLinks() {
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1">
-        {links.slice(0, -1).map((link) => {
+        {links.map((link) => {
           const LinkIcon = link.icon;
           const isActive = pathname === link.href;
 
