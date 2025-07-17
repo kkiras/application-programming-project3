@@ -63,16 +63,18 @@ export default function Page() {
     }
 
     const handleGenerateQuestions = async () => {
+        const auth = getAuth();
+        const user = auth.currentUser;
+        const uid = user?.uid;
         try {
-            const response = await fetch("http://localhost:8000/generate-questions")
+            const response = await fetch(`http://localhost:8000/generate-questions?count=${aiQuestionCount}&uid=${uid}`);
             if (!response.ok) {
                 throw new Error("Failed to generate questions");
             }
             const data = await response.json();
             console.log("Generated questions:", data);
-            console.log(typeof data);
-            if (Array.isArray(data)) {
-                setAiQuestions(data);
+            if (Array.isArray(data.questions)) {
+                setAiQuestions(data.questions);
             } else {
                 console.error("Invalid data format:", data);
                 setAiQuestions([]);
@@ -100,15 +102,50 @@ export default function Page() {
                 body: JSON.stringify({ question: question, uid: uid })
             })
 
+            const data = await res.json();
+
             if (res.ok) {
                 alert("Thêm câu hỏi thành công")
                 handleClearQuestion()
+            } else {
+                alert(`Lỗi: ${data.detail || "Không rõ lỗi"}`);
+                console.error("Server error:", data);
             }
 
         } catch (error) {
             console.error("Error generating questions:", error);
         }
 
+    }
+
+    const handleSaveAIQuestions = async () => {
+        console.log(question)
+        const auth = getAuth();
+        const user = auth.currentUser;
+        const uid = user?.uid;
+
+        try {
+            const res = await fetch("http://localhost:8000/api/add-ai-question", {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ questions: aiQuestions, uid: uid })
+            })
+
+            const data = await res.json();
+
+            if (res.ok) {
+                alert("Thêm câu hỏi thành công")
+                handleClearQuestion()
+            } else {
+                alert(`Lỗi: ${data.detail || "Không rõ lỗi"}`);
+                console.error("Server error:", data);
+            }
+
+        } catch (error) {
+            console.error("Error generating questions:", error);
+        }
     }
 
     return (
@@ -251,7 +288,6 @@ export default function Page() {
                                 </Button>
 
                                 <Button
-
                                     className="bg-purple-600 hover:bg-purple-700 text-white"
                                     disabled={!question || question.answers.some((a) => !a) || !question.correctAnswer}
                                     onClick={handleSaveQuestion}
@@ -283,7 +319,13 @@ export default function Page() {
                                         min="5"
                                         max="10"
                                         value={aiQuestionCount}
-                                        onChange={() => { }}
+                                        onChange={(e) => {
+                                            const count = Number(e.target.value)
+                                            if (!isNaN(count) && count <= 10) {
+                                                setAiQuestionCount(count)
+                                            }
+
+                                        }}
                                         className="w-16 bg-gray-700 border-gray-600 text-white"
                                     />
 
@@ -305,6 +347,7 @@ export default function Page() {
                                 <h2 className="text-xl font-bold text-white">Câu hỏi đã tạo</h2>
                                 <Button
                                     className="bg-green-600 hover:bg-green-700 text-white"
+                                    onClick={handleSaveAIQuestions}
                                 >
                                     <Check className="w-4 h-4" />
                                     Lưu tất cả câu hỏi

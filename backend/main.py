@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from quiz_creator import generate_questions
+from quesion_checker import check_duplicates
 from firebase_config import database
 from firebase_admin import auth as firebase_auth
 from firebase_admin import storage
@@ -58,20 +59,14 @@ def get_item(item_id: int) -> Item:
         raise HTTPException(status_code=404, detail="Item not found")
     
 @app.get("/generate-questions")
-async def get_questions():
-    questions = await generate_questions()
-    return questions
-
-@app.get("/questions")
-def get_questions_from_db():
-    questions_ref = database.child("Questions")
-    questions = questions_ref.get()
-    
-    if questions:
-        return [value for key, value in questions.items()]
-    else:
-        return []
-    
+async def get_questions(count: int, uid: str):
+    print(f"Request {count} questions")
+    try:
+        existing_questions = getQuestionList(True, uid)
+        questions = await generate_questions(count, existing_questions)
+        return {"questions": questions}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/signup")
 async def signup(req: Request):
@@ -185,8 +180,12 @@ async def addQuestion(req:Request):
     body = await req.json()
     question = body.get("question")
     uid = body.get("uid")
-    print("Question before:", question)
-    print("UID: ", uid)
+
+    existing_questions = getQuestionList(True, uid)
+    is_duplicated = await check_duplicates(question, existing_questions)
+
+    if is_duplicated:
+        raise HTTPException(status_code=400, detail="Duplicated question(s) detected")
 
     try:
         timestamp = int(datetime.now().timestamp())
@@ -254,28 +253,50 @@ def get_user_avatar(filePath: str):
         raise HTTPException(status_code=500, detail=str(e))
     
 @app.get("/get-questions-list")
-def getQuestionList(uid: Optional[str] = None):
+def getQuestionList(isQuestionOnly: Optional[bool] = None, uid: Optional[str] = None):
     try:
-        questions_snapshot = database.child("Questions").child("default_questions").get()
-        
-        if not questions_snapshot:
-            questions_snapshot = []
-        
+        default_snapshot = database.child("Questions").child("default_questions").get()
+        default_snapshot = default_snapshot if default_snapshot else {}
+
+        if isQuestionOnly:
+            default_questions = [
+                val.get("question", "")
+                for val in default_snapshot.values()
+                if isinstance(val, dict)
+            ]
+
+            user_questions = []
+            if uid:
+                user_snapshot = database.child("Questions").child(uid).get()
+                if user_snapshot:
+                    user_questions = [
+                        val.get("question", "")
+                        for val in user_snapshot.values()
+                        if isinstance(val, dict)
+                    ]
+
+            return {
+                "question_data": default_questions + user_questions
+            }
+
         default_questions = [
             {**val, "id": key}
-            for key, val in questions_snapshot.items()
+            for key, val in default_snapshot.items()
         ]
 
-        byUser_questions = []
+        user_questions = []
         if uid:
-            questions_snapshot = database.child("Questions").child(uid).get()
-            if questions_snapshot:
-                byUser_questions = [
+            user_snapshot = database.child("Questions").child(uid).get()
+            if user_snapshot:
+                user_questions = [
                     {**val, "id": key}
-                    for key, val in questions_snapshot.items()
+                    for key, val in user_snapshot.items()
                 ]
 
-        return{ "default_questions": default_questions, 'user_questions': byUser_questions }
+        return {
+            "default_questions": default_questions,
+            "user_questions": user_questions
+        }
     
     except Exception as e:
         print(str(e))
@@ -300,4 +321,70 @@ def deleteQuestion(data: DeleteRequest):
     except Exception as e:
         print("✖ Delete error:", e)
         raise HTTPException(status_code=500, detail="Xóa nhiều câu hỏi thất bại.")
+    
+@app.post("/api/add-ai-question")
+async def addAIQuestion(req: Request):
+    body = await req.json()
+    questions = body.get("questions")
+    uid = body.get("uid")
+
+    # ⚠️ Kiểm tra thiếu uid hoặc questions phải làm ngay từ đầu
+    if not questions or not uid:
+        raise HTTPException(status_code=400, detail="Missing 'uid' or 'questions'")
+
+    # Parse danh sách câu hỏi nếu là JSON string
+    try:
+        if isinstance(questions, str):
+            questions_list = json.loads(questions)
+        else:
+            questions_list = questions
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON format in 'questions'")
+
+    # Kiểm tra định dạng danh sách câu hỏi
+    if not isinstance(questions_list, list):
+        raise HTTPException(status_code=400, detail="'questions' must be a list")
+
+    for q in questions_list:
+        if not isinstance(q, dict) or not all(k in q for k in ("question", "answers", "correctAnswer")):
+            raise HTTPException(status_code=400, detail="Invalid question format")
+
+    # Lấy danh sách các câu hỏi hiện tại (chỉ lấy field "question")
+    questions_data = getQuestionList(True, uid)
+
+    # Kiểm tra trùng lặp
+    is_duplicated = await questionDuplicateCheck(questions_data, questions_list)
+
+    if is_duplicated:
+        raise HTTPException(status_code=400, detail="Duplicated question(s) detected")
+
+    # Ghi vào database
+    try:
+        inserted_questions = []
+        timestamp = int(datetime.now().timestamp())
+
+        for idx, q in enumerate(questions_list):
+            question_key = f"{timestamp}_{idx}"
+            q["id"] = question_key
+            database.child("Questions").child(uid).child(question_key).set(q)
+            inserted_questions.append(q)
+
+        return {
+            "message": "Questions added successfully",
+            "questions": inserted_questions
+        }
+
+    except Exception as e:
+        print(str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+async def questionDuplicateCheck(exist_questions: List[str], adding_questions: List[str]):
+    new_question_texts = [q["question"] for q in adding_questions]
+    print("Data: ", exist_questions)
+    print("New: ", new_question_texts)
+    is_duplicate = await check_duplicates(existing_questions=exist_questions, new_questions=new_question_texts)
+    print(is_duplicate)
+    return is_duplicate
+
+
 

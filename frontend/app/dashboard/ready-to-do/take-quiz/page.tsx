@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress"
 import clsx from "clsx"
 import { getAuth } from "firebase/auth";
 import { X } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 export interface QuestionData {
     num: number;
@@ -22,6 +22,8 @@ export default function Page() {
     const [trigger, setTrigger] = useState(false);
     const [questions, setQuestions] = useState<QuestionData[]>([])
     const { settings: userSettings, setSettings } = useUserSettings();
+    const [timeTaken, setTimeTaken] = useState(0);
+    const startTimeRef = useRef<number>(Date.now());
 
     useEffect(() => {
         const getQuestion = async () => {
@@ -46,8 +48,13 @@ export default function Page() {
         getQuestion()
     }, [])
 
+
     useEffect(() => {
+        if (!userSettings?.general_settings.questionTimer) return;
+
         console.log("Câu hỏi mới:", currentQuestion + 1);
+        startTimeRef.current = Date.now();
+
         const questionTimer = setInterval(() => {
             setQuestionTimeLeft(prev => {
                 if (prev <= 0) {
@@ -61,6 +68,8 @@ export default function Page() {
         }, 1000)
         return () => {
             clearInterval(questionTimer)
+            const elapsed = Date.now() - startTimeRef.current;
+            setTimeTaken(prev => prev + elapsed);
             setQuestionTimeLeft(defaultTimeLeft);
         };
     }, [currentQuestion]);
@@ -69,6 +78,14 @@ export default function Page() {
         setCurrentQuestion(index);
 
     }
+
+    const handleFinishQuiz = () => {
+        if (!userSettings?.general_settings.questionTimer) return 0;
+        const elapsed = Date.now() - startTimeRef.current;
+        const total = timeTaken + elapsed;
+        setTimeTaken(total);
+        return total;
+    };
 
     return (
         <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-purple-900 to-gray-800 flex flex-col">
@@ -97,14 +114,21 @@ export default function Page() {
                         </div>
                         <div>
                             <span className="text-sm text-gray-300">Thời gian câu hỏi</span>
-                            <div
-                                className={clsx(
-                                    'text-xl font-bold',
-                                    questionTimeLeft <= 10 ? 'text-red-400' : 'text-yellow-400'
-                                )}
-                            >
-                                {questionTimeLeft}s
-                            </div>
+                            {userSettings?.general_settings.questionTimer === true ? (
+                                <div
+                                    className={clsx(
+                                        'text-xl font-bold',
+                                        questionTimeLeft <= 10 ? 'text-red-400' : 'text-yellow-400'
+                                    )}
+                                >
+                                    {questionTimeLeft}s
+                                </div>
+                            ) : (
+                                <div className='text-xl font-bold text-yellow-400'>
+                                    --
+                                </div>
+                            )}
+
                         </div>
                         <Button
                             variant="ghost"
@@ -123,6 +147,8 @@ export default function Page() {
                 currentIndex={currentQuestion}
                 setIndex={setIndex}
                 questions={questions}
+                timeTaken={timeTaken}
+                onFinish={handleFinishQuiz}
             />
 
         </div>

@@ -265,10 +265,10 @@ export default function Page() {
                                                 key={question.id}
                                                 className="bg-gray-700/30 rounded-lg p-4 border border-gray-600/50 hover:border-purple-500/50 transition-colors"
                                             >
-                                                <div className="flex justify-between items-center">
-                                                    <div>
+                                                <div className="flex justify-between items-center gap-4">
+                                                    <div className="flex-1 min-w-0">
                                                         <span className="text-purple-400 font-medium">#{startSystemIndex + index + 1}</span>
-                                                        <p className="text-white text-lg leading-relaxed mt-2">{question.question}</p>
+                                                        <p className="text-white text-lg leading-relaxed mt-2 break-words">{question.question}</p>
                                                     </div>
                                                     {question.answers && Array.isArray(question.answers) && (
                                                         <Badge
@@ -365,10 +365,10 @@ export default function Page() {
                                                         />
                                                     </div>
                                                     <div className="flex-1">
-                                                        <div className="flex justify-between items-center">
-                                                            <div>
-                                                                <span className="text-purple-400 font-medium">#{startSystemIndex + index + 1}</span>
-                                                                <p className="text-white text-lg leading-relaxed mt-2">{question.question}</p>
+                                                        <div className="flex justify-between items-center gap-4">
+                                                            <div className="flex-1 min-w-0">
+                                                                <span className="text-purple-400 font-medium">#{startUserIndex + index + 1}</span>
+                                                                <p className="text-white text-lg leading-relaxed mt-2 break-words">{question.question}</p>
                                                             </div>
                                                             {question.answers && Array.isArray(question.answers) && (
                                                                 <Badge

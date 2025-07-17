@@ -1,5 +1,6 @@
 'use client';
 
+import { useUserSettings } from "@/app/context/UserSettingContext";
 import clsx from "clsx";
 import { Howl } from "howler";
 import { useState, useEffect, useCallback } from "react";
@@ -12,6 +13,8 @@ interface QuestionProps {
 }
 
 export default function Question({ num, question, answers, answered }: QuestionProps) {
+    const { settings: userSettings, setSettings } = useUserSettings();
+
     useEffect(() => {
         setSelectedAnswer(-1);
     }, [num]);
@@ -30,6 +33,8 @@ export default function Question({ num, question, answers, answered }: QuestionP
     }
 
     const playSound = useCallback(() => {
+        if (!userSettings?.general_settings.soundEffects) return
+
         const sound = new Howl({
             src: ['/answer-click.mp3'],
             volume: 0.5,
@@ -39,6 +44,8 @@ export default function Question({ num, question, answers, answered }: QuestionP
     }, [])
 
     const playSoundUnselected = useCallback(() => {
+        if (!userSettings?.general_settings.soundEffects) return
+
         const sound = new Howl({
             src: ['/answer-unselect.mp3'],
             volume: 0.5,

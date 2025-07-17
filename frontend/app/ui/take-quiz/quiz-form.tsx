@@ -1,11 +1,12 @@
 'use client';
-import { useCallback, useEffect, useState } from "react";
+import { RefObject, useCallback, useEffect, useState } from "react";
 import Question from "./question";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { QuestionData } from "@/app/dashboard/ready-to-do/take-quiz/page";
+import { useUserSettings } from "@/app/context/UserSettingContext";
 
 
 interface QuizFormProps {
@@ -13,13 +14,12 @@ interface QuizFormProps {
     setIndex: (index: number) => void;
     trigger: boolean;
     questions: QuestionData[]
+    timeTaken: number
+    onFinish: () => number;
 }
 
-export default function QuizForm({ currentIndex, setIndex, trigger, questions }: QuizFormProps) {
-
-    // if (!questions || questions.length === 0) {
-    //     return <p>Đang tải câu hỏi...</p>;
-    // }
+export default function QuizForm({ currentIndex, setIndex, trigger, questions, timeTaken, onFinish }: QuizFormProps) {
+    const { settings: userSettings, setSettings } = useUserSettings();
 
     const router = useRouter();
     useEffect(() => {
@@ -57,6 +57,8 @@ export default function QuizForm({ currentIndex, setIndex, trigger, questions }:
     }
 
     const playNextSound = useCallback(() => {
+        if (!userSettings?.general_settings.soundEffects) return
+
         const sound = new Howl({
             src: ['/next-question.mp3'],
             volume: 0.5,
@@ -64,29 +66,23 @@ export default function QuizForm({ currentIndex, setIndex, trigger, questions }:
         sound.play();
     }, []);
 
-    const handleFinish = () => {
-        const numQuestions = questions.length;
-        let correctAnswers = 0;
-        for (let i = 0; i < numQuestions; i++) {
-            const questionNum = i + 1;
-            const selectedAnswer = work[questionNum];
-            if (selectedAnswer === questions[i].correctAnswer) {
-                correctAnswers++;
-            }
-        }
-        const score = (correctAnswers / numQuestions) * 10.0;
-        const formattedScore = score.toFixed(2)
+    const handleFinish = async () => {
+        const finalTimeTaken = await onFinish();
+
         const compare = {
             questions: questions,
-            work: work
+            work: work,
+            timeTaken: finalTimeTaken === 0 ? '--' : (Number(finalTimeTaken) / 1000).toFixed(1)
         }
+
         localStorage.setItem('compare', JSON.stringify(compare))
-        // router.push(`/dashboard/ready-to-do/result?score=${formattedScore}`)
         router.push(`/dashboard/ready-to-do/result`)
 
     }
 
     const playSubmitSound = useCallback(() => {
+        if (!userSettings?.general_settings.soundEffects) return
+
         const sound = new Howl({
             src: ['/submit.mp3'],
             volume: 0.5,
