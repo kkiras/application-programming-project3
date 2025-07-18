@@ -4,8 +4,8 @@
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
-from quiz_creator import generate_questions
-from quesion_checker import check_duplicates
+from agents_serve.quiz_creator import generate_questions
+from agents_serve.quesion_checker import check_duplicates
 from firebase_config import database
 from firebase_admin import auth as firebase_auth
 from firebase_admin import storage
@@ -15,7 +15,7 @@ from datetime import timedelta, datetime
 import time
 import json
 import random
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 app = FastAPI()
 app.add_middleware(
@@ -33,9 +33,19 @@ class Item(BaseModel):
 
 items = []
 
+class QuestionUpdate(BaseModel):
+    question: str
+    answers: List[str]
+    correctAnswer: str
+    id: str
+
 class DeleteRequest(BaseModel):
     uid: Optional[str]
     question_ids: List[str]
+
+class UpdateRequest(BaseModel):
+    uid: str
+    question: QuestionUpdate
 
 @app.get("/")
 def root():
@@ -66,6 +76,8 @@ async def get_questions(count: int, uid: str):
         questions = await generate_questions(count, existing_questions)
         return {"questions": questions}
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/signup")
@@ -386,5 +398,23 @@ async def questionDuplicateCheck(exist_questions: List[str], adding_questions: L
     print(is_duplicate)
     return is_duplicate
 
+@app.put('/api/update-question')
+def updateQuestion(data: UpdateRequest):
+    try:
+        uid = data.uid
+        question = data.question
+
+        print("ID:", question.id)
+        
+        if not question:
+            raise HTTPException(status_code=400, detail="Không tìm thấy câu hỏi cần cập nhật.")
+        
+        ref = database.child("Questions").child(uid).child(question.id)
+        ref.update(question.dict())
+
+        return {"message": f"Đã cập nhật câu hỏi {question.id} thành công."}
+    except Exception as e:
+        print("✖ Delete error:", e)
+        raise HTTPException(status_code=500, detail="Cập nhật câu hỏi thất bại.")
 
 

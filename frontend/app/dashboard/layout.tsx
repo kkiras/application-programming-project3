@@ -9,13 +9,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     const isTakeQuizPage = pathName.startsWith('/dashboard/ready-to-do/take-quiz');
     return (
         <UserSettingsProvider>
+            <BackgroundMusic />
             {!isTakeQuizPage ? (
                 <div className="flex h-screen flex-col md:flex-row md:overflow-hidden bg-gradient-to-br from-gray-900 via-purple-900 to-gray-800">
                     <div className="w-full flex-none md:w-64">
                         <SideNav />
                     </div>
                     <div className="flex-grow p-6 md:overflow-y-auto md:p-12">{children}</div>
-                    <BackgroundMusic />
+
                 </div>
             ) : (
                 <div>

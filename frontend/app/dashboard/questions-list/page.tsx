@@ -2,17 +2,19 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { getAuth } from "firebase/auth";
-import { BookOpen, Plus, Search, User } from "lucide-react";
+import { BookOpen, Plus, Save, Search, User } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 interface Question {
-    id: number
+    id: string
     question: string
-    type: "single" | "multiple"
     answers: string[]
     // createdAt: string
 }
@@ -22,11 +24,16 @@ export default function Page() {
     const [searchInput, setSearchInput] = useState("")
     const [defaultQuestions, setDefaultQuestions] = useState<Question[]>([])
     const [userQuestions, setUserQuestions] = useState<Question[]>([])
-    const [selectedQuestions, setSelectedQuestions] = useState<number[]>([])
+    const [selectedQuestions, setSelectedQuestions] = useState<string[]>([])
 
     const [currentDefaultPage, setCurrentDefaultPage] = useState(1)
     const [currentUserPage, setCurrentUserPage] = useState(1)
     const questionsPerPage = 10
+
+    const [editingQuestion, setEditingQuestion] = useState<Question | null>(null)
+    const [editQuestion, setEditQuestion] = useState("")
+    const [editAnswers, setEditAnswers] = useState<string[]>([])
+    const [editCorrectAnswer, setEditCorrectAnswer] = useState("")
 
     useEffect(() => {
         const getQuestion = async () => {
@@ -149,7 +156,7 @@ export default function Page() {
         return length === 4 ? "Bốn đáp án" : "Đúng / Sai"
     }
 
-    const handleSelectQuestion = (questionId: number) => {
+    const handleSelectQuestion = (questionId: string) => {
         setSelectedQuestions((prev) =>
             prev.includes(questionId) ? prev.filter((id) => id !== questionId) : [...prev, questionId],
         )
@@ -162,6 +169,7 @@ export default function Page() {
             setSelectedQuestions(filteredUserQuestions.map((q) => q.id))
         }
     }
+
 
     const handleDeleteSelected = async () => {
         if (selectedQuestions.length === 0) return
@@ -196,12 +204,78 @@ export default function Page() {
                 setUserQuestions(updatedQuestions)
                 setSelectedQuestions([])
             } catch (error) {
-                console.error("❌ Error deleting questions:", error);
+                console.error("Error deleting questions:", error);
             }
 
         }
     }
 
+
+    const handleEditQuestion = (question: Question) => {
+        setEditingQuestion(question)
+        setEditQuestion(question.question)
+        setEditAnswers(question.answers)
+
+        console.log("Editing question:", question)
+
+    }
+
+
+    const handleSaveEdit = () => {
+        if (!editingQuestion) return
+
+        const updatedQuestion = {
+            ...editingQuestion,
+            question: editQuestion.trim(),
+            answers: editAnswers.map((a) => a.trim()),
+            correctAnswer: editCorrectAnswer
+        }
+
+        console.log("Upadating: ", updatedQuestion)
+
+        try {
+            const auth = getAuth();
+            const user = auth.currentUser;
+            const uid = user?.uid;
+
+            const res = fetch('http://localhost:8000/api/update-question', {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    uid,
+                    question: updatedQuestion,
+                }),
+            })
+        } catch (error) {
+            console.error("Error updating questions:", error);
+        }
+
+        const questionIndex = userQuestions.findIndex((q: any) => q.id === editingQuestion.id)
+
+        if (questionIndex !== -1) {
+            userQuestions[questionIndex] = updatedQuestion
+
+            setUserQuestions(userQuestions)
+            alert("Câu hỏi đã được cập nhật thành công!")
+        }
+
+        handleCloseEdit()
+    }
+
+    const handleCloseEdit = () => {
+        setEditingQuestion(null)
+        setEditQuestion("")
+        setEditAnswers([])
+        setEditCorrectAnswer("")
+    }
+
+    const handleEditAnswerChange = (index: number, value: string) => {
+        const newAnswers = [...editAnswers]
+        newAnswers[index] = value
+        setEditAnswers(newAnswers)
+    }
 
     return (
         <div>
@@ -264,6 +338,7 @@ export default function Page() {
                                             <div
                                                 key={question.id}
                                                 className="bg-gray-700/30 rounded-lg p-4 border border-gray-600/50 hover:border-purple-500/50 transition-colors"
+
                                             >
                                                 <div className="flex justify-between items-center gap-4">
                                                     <div className="flex-1 min-w-0">
@@ -354,12 +429,14 @@ export default function Page() {
                                                     ? "border-red-500/70 bg-red-900/20"
                                                     : "border-gray-600/50 hover:border-purple-500/50"
                                                     }`}
+                                                onClick={() => handleEditQuestion(question)}
                                             >
                                                 <div className="flex items-start space-x-3">
                                                     <div className="flex items-center pt-1">
                                                         <input
                                                             type="checkbox"
                                                             checked={selectedQuestions.includes(question.id)}
+                                                            onClick={(e) => e.stopPropagation()}
                                                             onChange={() => handleSelectQuestion(question.id)}
                                                             className="w-4 h-4 text-red-600 bg-gray-700 border-gray-600 rounded focus:ring-red-500 focus:ring-2"
                                                         />
@@ -390,6 +467,76 @@ export default function Page() {
                     </Card>
                 </TabsContent>
             </Tabs>
+            {editingQuestion && (
+                <Dialog open={!!editingQuestion} onOpenChange={(open) => !open && handleCloseEdit()}>
+                    <DialogContent className="bg-gray-800 border-purple-500/30 text-white max-w-2xl max-h-[80vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle className="text-xl font-bold text-white">Chỉnh Sửa Câu Hỏi</DialogTitle>
+                        </DialogHeader>
+
+                        <div className="space-y-6 mt-4">
+                            <div>
+                                <Label htmlFor="edit-question" className="text-white mb-2 block">
+                                    Câu hỏi *
+                                </Label>
+                                <Textarea
+                                    id="edit-question"
+                                    value={editQuestion}
+                                    onChange={(e) => setEditQuestion(e.target.value)}
+                                    placeholder="Nhập nội dung câu hỏi..."
+                                    className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                                    rows={3}
+                                />
+                            </div>
+
+                            <div>
+                                <Label className="text-white mb-4 block">
+                                    Các đáp án *
+                                    <span className="text-sm text-gray-400 ml-2">(Chọn radio button để đánh dấu đáp án đúng)</span>
+                                </Label>
+                                <div className="space-y-3">
+                                    {editAnswers.map((answer, index) => (
+                                        <div key={index} className="flex items-center space-x-3">
+                                            <input
+                                                type="radio"
+                                                name="edit-correct"
+                                                checked={editCorrectAnswer === answer}
+                                                onChange={() => setEditCorrectAnswer(answer)}
+                                                className="w-4 h-4 text-purple-600"
+                                            />
+                                            <Label className="text-white min-w-[20px]">{String.fromCharCode(65 + index)}.</Label>
+                                            <Input
+                                                value={answer}
+                                                onChange={(e) => handleEditAnswerChange(index, e.target.value)}
+                                                placeholder={`Đáp án ${String.fromCharCode(65 + index)}`}
+                                                className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end space-x-4 pt-4">
+                                <Button
+                                    variant="outline"
+                                    onClick={handleCloseEdit}
+                                    className="border-gray-600 text-gray-300 hover:bg-gray-700 bg-transparent"
+                                >
+                                    Hủy
+                                </Button>
+                                <Button
+                                    onClick={handleSaveEdit}
+                                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                                    disabled={!editQuestion.trim() || editAnswers.some((a) => !a.trim())}
+                                >
+                                    <Save className="w-4 h-4 mr-2" />
+                                    Lưu thay đổi
+                                </Button>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            )}
         </div>
     );
 }

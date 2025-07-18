@@ -10,7 +10,6 @@ export default function BackgroundMusic() {
 
     useEffect(() => {
         if (!isBackgroundMusicAllowed) {
-            // Nếu nhạc đang chạy thì dừng lại
             const audio = audioRef.current;
             if (audio) {
                 audio.pause();
