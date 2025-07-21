@@ -34,7 +34,7 @@ export default function Page() {
         setChangedSettings((prev) => ({
             ...prev,
             personal_inf: {
-                ...prev.personal_inf,
+                ...prev?.personal_inf,
                 avatar: objectURL
             }
         }))
@@ -44,6 +44,7 @@ export default function Page() {
     }, [selectedImg])
 
     useEffect(() => {
+        if (!changedSettings?.personal_inf || !changedSettings?.general_settings) return;
         console.log("Personal settings updated:", changedSettings.personal_inf);
         console.log("General settings updated:", changedSettings.general_settings);
         console.log("Base settings:", userSettings)
@@ -117,7 +118,7 @@ export default function Page() {
         }
     };
 
-    console.log("Avatar src:", userSettings?.personal_inf.avatar)
+    console.log("Avatar src:", userSettings?.personal_inf?.avatar)
 
     return (
         <div>
@@ -131,7 +132,7 @@ export default function Page() {
 
                     <CardContent>
                         <div className="flex items-center gap-4">
-                            {(selectedImg || userSettings!.personal_inf.avatar) ? (
+                            {(selectedImg || userSettings?.personal_inf?.avatar) ? (
                                 <Avatar className="w-20 h-20 rounded-full overflow-hidden">
                                     <AvatarImage
                                         src={preview || `http://localhost:8000/avatars/${userSettings?.personal_inf.avatar}`}
@@ -183,7 +184,7 @@ export default function Page() {
                                     type="number"
                                     min="5"
                                     max="10"
-                                    value={changedSettings.general_settings.questionCount}
+                                    value={changedSettings?.general_settings?.questionCount}
                                     onChange={(e) => {
                                         const raw = e.target.value;
                                         const parsed = parseInt(raw, 10);
@@ -212,7 +213,7 @@ export default function Page() {
                                     </Label>
                                     <Switch
                                         id={option.key}
-                                        checked={changedSettings.general_settings[option.key]}
+                                        checked={!!changedSettings?.general_settings?.[option.key]}
                                         onCheckedChange={() => {
                                             setChangedSettings((prev) => (
                                                 {

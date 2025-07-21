@@ -16,7 +16,7 @@ export interface QuestionData {
 }
 
 export default function Page() {
-    const defaultTimeLeft = 10;
+    const defaultTimeLeft = 20;
     const [currentQuestion, setCurrentQuestion] = useState(0);
     const [questionTimeLeft, setQuestionTimeLeft] = useState(defaultTimeLeft);
     const [trigger, setTrigger] = useState(false);
@@ -87,38 +87,37 @@ export default function Page() {
         return total;
     };
 
+    const progress = ((currentQuestion + 1) / questions.length) * 100
+
     return (
         <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-purple-900 to-gray-800 flex flex-col">
-            {/* Header */}
             <div className="bg-gray-800/70 border-b border-purple-500/30 p-4 backdrop-blur-sm">
                 <div className="flex justify-between items-center max-6xl mx-auto">
                     <div className="flex items-center space-x-6">
                         <div className="text-white">
                             <span className="text-sm text-gray-300">Câu hỏi</span>
                             <div className="text-xl font-bold">
-                                {/* Placeholder for question count */}
-                                1/10
+                                {currentQuestion + 1}/{questions.length}
                             </div>
                         </div>
                         <div className="w-48">
-                            <Progress className="h-2 bg-white" />
+                            <Progress value={progress} className="h-2 bg-white" />
                         </div>
                     </div>
 
                     <div className="flex items-center space-x-6">
-                        <div>
+                        {/* <div>
                             <span className="text-sm text-gray-300">Thời gian còn lại</span>
                             <div>
-                                {/* Placeholder for timer */}
                             </div>
-                        </div>
-                        <div>
+                        </div> */}
+                        <div className="text-center">
                             <span className="text-sm text-gray-300">Thời gian câu hỏi</span>
                             {userSettings?.general_settings.questionTimer === true ? (
                                 <div
                                     className={clsx(
                                         'text-xl font-bold',
-                                        questionTimeLeft <= 10 ? 'text-red-400' : 'text-yellow-400'
+                                        questionTimeLeft <= 10 ? 'text-red-400' : 'text-purple-400'
                                     )}
                                 >
                                     {questionTimeLeft}s

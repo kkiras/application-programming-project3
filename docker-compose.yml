@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
-    restart: unless-stopped
+    restart: no
 
   backend:
     build:
@@ -16,4 +16,4 @@ services:
     ports:
       - "8000:8000"
     working_dir: /app
-    restart: always
+    restart: no

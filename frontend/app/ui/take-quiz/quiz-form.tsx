@@ -20,6 +20,7 @@ interface QuizFormProps {
 
 export default function QuizForm({ currentIndex, setIndex, trigger, questions, timeTaken, onFinish }: QuizFormProps) {
     const { settings: userSettings, setSettings } = useUserSettings();
+    const [selectedAnswer, setSelectedAnswer] = useState(-1);
 
     const router = useRouter();
     useEffect(() => {
@@ -36,14 +37,16 @@ export default function QuizForm({ currentIndex, setIndex, trigger, questions, t
         }, {} as { [key: number]: string })
     );
 
+    useEffect(() => {
+        console.log("Updated work:", work);
+        console.log("work at currentIndex + 1:", work[currentIndex + 1]);
+    }, [work, currentIndex]);
+
     const handleAnswered = (answer: [number, string]) => {
         setWork(prev => ({
             ...prev,
             [answer[0]]: answer[1],
         }));
-
-        console.log(work)
-
     };
 
     const handleNext = () => {
@@ -54,6 +57,7 @@ export default function QuizForm({ currentIndex, setIndex, trigger, questions, t
         }
         playNextSound();
         setIndex(currentIndex + 1);
+
     }
 
     const playNextSound = useCallback(() => {
@@ -97,6 +101,9 @@ export default function QuizForm({ currentIndex, setIndex, trigger, questions, t
     const currentQuestion = questions[currentIndex];
 
 
+
+
+
     return (
         <div className="flex-1 flex items-center justify-center p-8">
             <Card className="bg-gray-800/50 border-purple-500/30 max-w-4xl w-full">
@@ -106,11 +113,13 @@ export default function QuizForm({ currentIndex, setIndex, trigger, questions, t
                         question={currentQuestion.question}
                         answers={currentQuestion.answers}
                         answered={handleAnswered}
+                        selectedAnswer={selectedAnswer}
+                        setSelectedAnswer={setSelectedAnswer}
                     />
 
                     <div className="flex justify-end">
                         <Button
-                            disabled={work[currentIndex + 1] === ""}
+                            disabled={selectedAnswer === -1}
                             onClick={handleNext}
                             className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 text-lg pb-3.5"
                             size="lg"

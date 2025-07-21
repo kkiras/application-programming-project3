@@ -24,7 +24,7 @@ const links = [
     href: '/dashboard/ready-to-do',
     icon: DocumentDuplicateIcon,
   },
-  { name: 'Tạo quiz', href: '/dashboard/create-quiz', icon: UserGroupIcon },
+  { name: 'Tạo câu hỏi', href: '/dashboard/create-quiz', icon: UserGroupIcon },
   { name: 'Cài đặt', href: '/dashboard/settings', icon: WrenchIcon },
   { name: 'Danh sách câu hỏi', href: '/dashboard/questions-list', icon: List }
 ];

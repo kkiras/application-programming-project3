@@ -1,6 +1,3 @@
-# uvicorn main:app --reload
-# pnpm dev
-
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
@@ -165,12 +162,11 @@ async def save_settings(
             blob = bucket.blob(path)
             blob.upload_from_string(await file.read(), content_type=file.content_type)
             avatar_url = blob.generate_signed_url(expiration=timedelta(minutes=10))
+            
             update_data["personal_inf"] = {"avatar": f"{uid}/{timestamp}.jpg"}
             ref = database.child("Accounts").child(uid).child("personal_inf")
             current_personal_inf = ref.get() or {}
-
             current_personal_inf["avatar"] = f"{uid}/{timestamp}.jpg"
-
             database.child("Accounts").child(uid).child("personal_inf").update(current_personal_inf)
 
         if general_settings:

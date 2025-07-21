@@ -73,4 +73,4 @@ zipp==3.21.0
 fastapi
 uvicorn
 firebase_admin
-multipart
+python-multipart

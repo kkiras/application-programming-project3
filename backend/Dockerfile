@@ -5,6 +5,7 @@ WORKDIR /app
 
 # Copy requirements and install dependencies
 COPY backend/requirements.txt .
+RUN pip install --no-cache-dir python-multipart==0.0.6
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend source code

@@ -127,6 +127,8 @@ export default function Page() {
                                  setLoginInformation((prev) => ({ ...prev, email: e.target.value }))
                               }
                               required
+                              name="new-email"
+                              autoComplete="new-email"
                               className='bg-gray-700 border-gray-600 text-white'
                            />
                         </div>

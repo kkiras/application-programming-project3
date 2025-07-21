@@ -10,16 +10,18 @@ interface QuestionProps {
     question: string;
     answers: string[];
     answered: (result: [number, string]) => void;
+    selectedAnswer: number,
+    setSelectedAnswer: (index: number) => void
 }
 
-export default function Question({ num, question, answers, answered }: QuestionProps) {
+export default function Question({ num, question, answers, answered, selectedAnswer, setSelectedAnswer }: QuestionProps) {
     const { settings: userSettings, setSettings } = useUserSettings();
 
     useEffect(() => {
         setSelectedAnswer(-1);
     }, [num]);
 
-    const [selectedAnswer, setSelectedAnswer] = useState(-1);
+
     const handleAnswerSelected = (index: number) => {
         if (selectedAnswer == index) {
             setSelectedAnswer(-1);
