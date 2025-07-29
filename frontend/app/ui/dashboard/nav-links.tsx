@@ -9,7 +9,6 @@ import {
 import clsx from 'clsx';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { getAuth, signOut } from 'firebase/auth';
 import { List, User } from 'lucide-react';
 import { useUserSettings } from '@/app/context/UserSettingContext';
 import { Card } from '@/components/ui/card';
@@ -36,8 +35,8 @@ export default function NavLinks() {
   const { settings: userSettings, setSettings } = useUserSettings();
 
   const handleLogout = async () => {
-    const auth = getAuth();
-    await signOut(auth);
+    // setSettings(null);
+    localStorage.removeItem('userSettings');
     window.location.href = "/";
   }
 
@@ -51,10 +50,11 @@ export default function NavLinks() {
       <div className='bg-gray-700 h-0.5 ml-4 mr-4 mb-6'></div>
       <Card className='mr-4 ml-4 mb-6 p-3 bg-gray-700/50 border-purple-500/30'>
         <div className='flex items-center gap-4'>
-          {(userSettings?.personal_inf.avatar) ? (
+          {(userSettings?.personal_inf.avatar_url) ? (
             <Avatar className="w-16 h-16 rounded-full overflow-hidden">
               <AvatarImage
-                src={`http://localhost:8000/avatars/${userSettings?.personal_inf.avatar}`}
+                src={userSettings?.personal_inf.avatar_url}
+                key={userSettings?.personal_inf.avatar_url}
                 alt=""
               />
               <AvatarFallback>
@@ -69,7 +69,7 @@ export default function NavLinks() {
           <div>
             <h2 className="text-white font-medium mb-2 text-lg">User</h2>
             <p className="text-white text-sm truncate max-w-[100px]">
-              {typeof window !== "undefined" && getAuth().currentUser?.email}
+              {typeof window !== "undefined" && userSettings?.email}
             </p>
           </div>
         </div>

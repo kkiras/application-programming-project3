@@ -13,14 +13,6 @@ import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import {
-   createUserWithEmailAndPassword,
-   signInWithEmailAndPassword,
-   sendPasswordResetEmail
-} from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { FirebaseError } from "firebase/app";
-
 export default function Page() {
    const route = useRouter();
 
@@ -32,75 +24,67 @@ export default function Page() {
 
    const handleSignup = async () => {
       const { username, email, password } = signupInformation;
-      try {
-         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-         const idToken = await userCredential.user.getIdToken(true);
-         const uid = userCredential.user.uid;
 
-         await fetch('http://localhost:8000/api/signup', {
+      try {
+         const res = await fetch('/api/signup', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, email, uid, idToken })
+            body: JSON.stringify({ username, email, password })
          });
+
+         if (res.ok) {
+            const data = await res.json();
+            console.log("Signup successful:", data);
+            // Optionally: redirect or auto-login
+         } else {
+            const errorData = await res.json();
+            console.error("Signup failed:", errorData.detail);
+         }
       } catch (error: any) {
-         console.error("Signup failed:", error.message);
+         console.error("Lỗi kết nối:", error.message);
       }
    };
 
    const handleSignin = async () => {
       const { email, password } = loginInformation;
-      try {
-         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-         const idToken = await userCredential.user.getIdToken();
 
-         const res = await fetch('http://localhost:8000/api/auth', {
+      try {
+         const res = await fetch('/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: idToken })
+            body: JSON.stringify({ email, password })
          });
 
          if (res.ok) {
-            const resData = await res.json();
-            const account_data = resData.account_data;
+            const data = await res.json();
+            const account_data = data.account_data;
+
             const userSettings = {
+               id: account_data._id,
+               email: account_data.email,
                personal_inf: account_data.personal_inf,
                general_settings: account_data.settings
             };
+
             localStorage.setItem('userSettings', JSON.stringify(userSettings));
             route.push('/dashboard');
          } else {
             const errorData = await res.json();
-            console.error("Backend error:", errorData.detail);
+            console.error("Login failed:", errorData.detail);
          }
       } catch (error: any) {
-         if (error instanceof FirebaseError) {
-            switch (error.code) {
-               case "auth/user-not-found":
-                  console.error("Email không tồn tại.");
-                  break;
-               case "auth/wrong-password":
-                  console.error("Sai mật khẩu.");
-                  break;
-               case "auth/invalid-email":
-                  console.error("Email không hợp lệ.");
-                  break;
-               default:
-                  console.error("Email hoặc mật khẩu không đúng:", error.message);
-            }
-         } else {
-            console.error("Lỗi không xác định:", error.message);
-         }
+         console.error("Lỗi kết nối:", error.message);
       }
    };
 
-   const handleResetPassword = async () => {
-      try {
-         await sendPasswordResetEmail(auth, resetEmail);
-         setResetMessage("Please check your email for the reset link.");
-      } catch (error: any) {
-         setResetMessage(error.message);
-      }
-   };
+   // const handleResetPassword = async () => {
+   //    try {
+   //       await sendPasswordResetEmail(auth, resetEmail);
+   //       setResetMessage("Please check your email for the reset link.");
+   //    } catch (error: any) {
+   //       setResetMessage(error.message);
+   //    }
+   // };
 
    return (
       <main className='bg-gradient-to-br from-gray-900 via-purple-900 to-gray-800 flex items-center justify-center min-h-screen p-4'>
@@ -252,7 +236,7 @@ export default function Page() {
                      </div>
                   </CardContent>
                   <CardFooter className="flex-col gap-2">
-                     <Button className="w-full bg-purple-600 text-white" onClick={handleResetPassword}>
+                     <Button className="w-full bg-purple-600 text-white" >
                         Send Reset Link
                      </Button>
                      <Button variant="outline" className="w-full hover:bg-gray-700 hover:text-white" onClick={() => setAuthMode('login')}>

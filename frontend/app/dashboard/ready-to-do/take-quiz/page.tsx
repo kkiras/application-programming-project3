@@ -28,14 +28,13 @@ export default function Page() {
     useEffect(() => {
         const getQuestion = async () => {
             const count = userSettings?.general_settings.questionCount
-            const auth = getAuth();
-            const user = auth.currentUser;
-            const uid = user?.uid;
+            const uid = userSettings?.id
 
-            if (!count) return
+
+            if (!count || !uid) return
 
             try {
-                const res = await fetch(`http://localhost:8000/get-questions/${count}?uid=${uid}`)
+                const res = await fetch(`/api/get-questions?count=${count}&uid=${uid}`)
                 const data = await res.json()
                 const questions_data = data.questions
                 setQuestions(questions_data)

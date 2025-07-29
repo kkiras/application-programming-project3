@@ -3,18 +3,34 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from agents_serve.quiz_creator import generate_questions
 from agents_serve.quesion_checker import check_duplicates
-from firebase_config import database
-from firebase_admin import auth as firebase_auth
-from firebase_admin import storage
 from fastapi import Request
-from fastapi.responses import RedirectResponse
-from datetime import timedelta, datetime
-import time
+from datetime import datetime
+from fastapi.responses import StreamingResponse
 import json
 import random
-from typing import Optional, List, Dict
+from typing import Optional, List
+from pymongo import MongoClient
+from bson.binary import Binary
+import os
+from dotenv import load_dotenv
+import bcrypt
+from jsonpath_ng import parse
+from io import BytesIO
+import uvicorn
+
+load_dotenv()
+
+client = MongoClient(os.getenv("MONGO_URI"))
+db = client[os.getenv("MONGO_DB_NAME")]
+questions_collection = db["Questions"]
+accounts_collection = db["Accounts"]
 
 app = FastAPI()
+port = int(os.getenv("PORT", 8000))
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"], 
@@ -23,18 +39,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-class Item(BaseModel):
-    text: str # Required field
-    is_done: bool = False # Default value is False
-
-items = []
-
 class QuestionUpdate(BaseModel):
     question: str
     answers: List[str]
     correctAnswer: str
     id: str
+    owner: str
 
 class DeleteRequest(BaseModel):
     uid: Optional[str]
@@ -44,34 +54,17 @@ class UpdateRequest(BaseModel):
     uid: str
     question: QuestionUpdate
 
-@app.get("/")
+@app.get("/api/")
 def root():
-    return {"message": "Hello, World!"}
-
-@app.post("/items")
-def create_item(item: Item):
-    items.append(item)
-    return items
-
-@app.get("/items")
-def list_items(limit: int = 10):
-    return items[0:limit]
-
-@app.get("/items/{item_id}")
-def get_item(item_id: int) -> Item:
+    return {"message": f"Respone from server {port}"}
     
-    if item_id < len(items):
-        return items[item_id]
-    else:
-        raise HTTPException(status_code=404, detail="Item not found")
-    
-@app.get("/generate-questions")
+@app.get("/api/generate-questions")
 async def get_questions(count: int, uid: str):
     print(f"Request {count} questions")
     try:
         existing_questions = getQuestionList(True, uid)
         questions = await generate_questions(count, existing_questions)
-        return {"questions": questions}
+        return questions
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -79,70 +72,87 @@ async def get_questions(count: int, uid: str):
 
 @app.post("/api/signup")
 async def signup(req: Request):
-    body = await req.json()
-    username = body.get("username")
-    id_token = body.get("idToken")
-    print("ID-Token", id_token)
-    # email = body.get("email")
-    # uid = body.get("uid")
-    
     try:
-        decoded = firebase_auth.verify_id_token(id_token)
-        uid = decoded.get("uid")
-        email = decoded.get("email")   
+        body = await req.json()
+        email = body.get("email")
+        password = body.get("password")
 
-        print("UID", uid)
-        print("email", email)
+        if not email or not password:
+            raise HTTPException(status_code=400, detail="Missing required fields: email or password")
 
-        account_ref = database.child("Accounts").child(uid)
-        if account_ref.get() is not None:
-            return {"message": "User already exists"}
-        
-        account_ref.set({
-            "uid": uid,
-            "username": username,
+        if accounts_collection.find_one({"email": email}):
+            raise HTTPException(status_code=409, detail="Email already registered")
+
+        count = accounts_collection.count_documents({})
+        uid = f"user{str(count + 1).zfill(3)}"
+
+        while accounts_collection.find_one({"_id": uid}):
+            count += 1
+            uid = f"user{str(count + 1).zfill(3)}"
+
+        hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+        new_user = {
+            "_id": uid,
+            "username": "", 
             "email": email,
-            "personal_inf":{
-                "avatar": '',
-                "displayName": 'User',
+            "password": hashed_password,
+            "personal_inf": {
+                "avatar": "",
+                "displayName": "User"
             },
-            "settings":{
+            "settings": {
                 "backgroundMusic": True,
                 "soundEffects": True,
                 "questionTimer": True,
-                "questionCount": 5,
+                "questionCount": 5
             }
-        })
+        }
 
-        return {"message": "Account created", "uid": uid, "email": email}
+        accounts_collection.insert_one(new_user)
+
+        return {
+            "message": "Account created successfully",
+            "uid": uid,
+            "email": email
+        }
+
+    except HTTPException:
+        raise 
+    except Exception as e:
+        print("Signup error:", str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
     
-    except Exception as e:
-        print(e)
-        raise HTTPException(status_code=401, detail="Invalid token or account creation failed")
 
-@app.post("/api/auth")
-async def verify_token(req: Request):
+def serialize_user(user: dict):
+    user["_id"] = str(user["_id"])
+
+    if "personal_inf" in user:
+        jsonpath_expr = parse("$.[*].personal_inf.avatar")
+        jsonpath_expr.filter(lambda d: True, user)
+
+        user["personal_inf"]["avatar_url"] = f"/api/avatar/{user['_id']}"
+
+    return user
+
+@app.post("/api/login")
+async def login(req: Request):
     body = await req.json()
-    id_token = body.get("token")
+    email = body.get("email")
+    password = body.get("password")
 
-    try:
-        t0 = time.time()
-        decoded = firebase_auth.verify_id_token(id_token)
-        print("✔ Token decoded in", time.time() - t0)
+    user = accounts_collection.find_one({"email": email})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
-        uid = decoded.get("uid")
-        email = decoded.get("email")
+    stored_hash = user.get("password").encode("utf-8")
+    if not bcrypt.checkpw(password.encode("utf-8"), stored_hash):
+        raise HTTPException(status_code=401, detail="Incorrect password")
 
-        t1 = time.time()
-        account_ref = database.child("Accounts").child(uid)
-        account_data = account_ref.get()
-        print("✔ Firebase get() took", time.time() - t1)
+    user = serialize_user(user)
+    print("Account data: ", user)
 
-        return {"account_data": account_data}
-
-    except Exception as e:
-        print("✖ Auth error:", e)
-        raise HTTPException(status_code=401, detail="Invalid token")
+    return {"message": "Login successful", "account_data": user}
 
 @app.post("/api/save-settings")
 async def save_settings(
@@ -154,26 +164,32 @@ async def save_settings(
         update_data = {}
 
         if file:
-            if not file.filename.endswith(('.jpg', '.jpeg', '.png')):
+            if not file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
                 raise HTTPException(status_code=400, detail="Only image files allowed.")
-            bucket = storage.bucket()
-            timestamp = int(datetime.now().timestamp())
-            path = f"avatars/{uid}/{timestamp}.jpg"
-            blob = bucket.blob(path)
-            blob.upload_from_string(await file.read(), content_type=file.content_type)
-            avatar_url = blob.generate_signed_url(expiration=timedelta(minutes=10))
-            
-            update_data["personal_inf"] = {"avatar": f"{uid}/{timestamp}.jpg"}
-            ref = database.child("Accounts").child(uid).child("personal_inf")
-            current_personal_inf = ref.get() or {}
-            current_personal_inf["avatar"] = f"{uid}/{timestamp}.jpg"
-            database.child("Accounts").child(uid).child("personal_inf").update(current_personal_inf)
+
+            content = await file.read()
+
+            avatar_binary = Binary(content)
+
+            update_data["personal_inf"] = {
+                "avatar": avatar_binary,
+                "userName": ""
+            }
 
         if general_settings:
             parsed = json.loads(general_settings)
             update_data["settings"] = parsed
-            ref = database.child("Accounts").child(uid)
-            ref.update(update_data)
+
+        result = accounts_collection.update_one(
+            {"_id": uid},
+            {"$set": update_data},
+            upsert=True
+        )
+
+        update_data["personal_inf"] = {
+                "avatar_url": f"/api/avatar/{uid}",
+                "userName": ""
+        }
 
         return {
             "success": True,
@@ -183,131 +199,134 @@ async def save_settings(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/avatar/{user_id}")
+def get_avatar(user_id: str):
+    user = accounts_collection.find_one({"_id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    avatar_data = user.get("personal_inf", {}).get("avatar")
+    if not avatar_data:
+        raise HTTPException(status_code=404, detail="Avatar not found")
+
+    return StreamingResponse(BytesIO(avatar_data), media_type="image/png")
+
 @app.post("/api/add-question")
 async def addQuestion(req:Request):
     body = await req.json()
-    question = body.get("question")
     uid = body.get("uid")
+    questions = body.get("questions") or body.get("question")
 
-    existing_questions = getQuestionList(True, uid)
-    is_duplicated = await check_duplicates(question, existing_questions)
+    if not uid or not questions:
+        raise HTTPException(status_code=400, detail="Missing 'uid' or 'question(s)'")
+
+    if isinstance(questions, str):
+        try:
+            questions = json.loads(questions)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid JSON format")
+
+    if isinstance(questions, dict):
+        questions = [questions]
+
+    if not isinstance(questions, list):
+        raise HTTPException(status_code=400, detail="'questions' must be a list or object")
+
+    for q in questions:
+        if not isinstance(q, dict) or not all(k in q for k in ("question", "answers", "correctAnswer")):
+            raise HTTPException(status_code=400, detail="Invalid question format")
+
+    existing = getQuestionList(True, uid)
+    is_duplicated = await questionDuplicateCheck(existing, questions)
 
     if is_duplicated:
         raise HTTPException(status_code=400, detail="Duplicated question(s) detected")
 
     try:
+        inserted = []
         timestamp = int(datetime.now().timestamp())
-        question_key = str(timestamp)
 
-        print("QuestionID:", question_key)
-
-        question["id"]=question_key
-        print("Question:", question)
-        database.child("Questions").child(uid).child(question_key).set(question)
-
+        if isinstance(questions, list):
+            print("Questions:", questions)
+            for idx, q in enumerate(questions):
+                q_id = f"{timestamp}" if len(questions) == 1 else f"{timestamp}_{idx+1}"
+                q["id"] = q_id
+                q["owner"] = uid
+                questions_collection.insert_one(q)
+                q.pop("_id", None)
+                inserted.append(q)
+            
+        else:
+            raise ValueError("Dữ liệu 'questions' phải là object hoặc list")
         return {
-            "message": "Question added successfully",
-            "id": question_key
+            "message": " question(s) added successfully.",
+            
         }
+
     except Exception as e:
-       print(str(e))
-       raise HTTPException(status_code=500, detail="Internal server error")
+        print("✖ Insert error:", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
     
-@app.get("/get-questions/{count}")
+@app.get("/api/get-questions")
 def getQuestions(count: int, uid: Optional[str] = None):
     try:
-        questions_snapshot = database.child("Questions").child("default_questions").get()
-        
-        if not questions_snapshot:
-            questions_snapshot = []
-        
-        default_questions = [
-            {**val, "id": key}
-            for key, val in questions_snapshot.items()
-        ]
-
-        byUser_questions = []
+        query = {"$or": [{"owner": "default"}]}
         if uid:
-            questions_snapshot = database.child("Questions").child(uid).get()
-            if questions_snapshot:
-                byUser_questions = [
-                    {**val, "id": key}
-                    for key, val in questions_snapshot.items()
-                ]
+            query["$or"].append({"owner": uid})
 
-        questions = default_questions + byUser_questions
+        questions = list(questions_collection.find(query))
+        for q in questions:
+            q["id"] = q.get("id", str(q["_id"]))
+            q.pop("_id", None)
 
         random.shuffle(questions)
-        return{ "questions": questions[:count] }
-    
-    except Exception as e:
-        print(str(e))
-        raise HTTPException(status_code=500, detail=str(e))
-    
-@app.get("/avatars/{filePath:path}")
-def get_user_avatar(filePath: str):
-    try:
-        path= f"avatars/{filePath}"
-        bucket= storage.bucket()
-        blob= bucket.blob(path)
-
-        if not blob.exists():
-            raise HTTPException(status_code=404, detail="Avatar file not found")
-
-        signed_url = blob.generate_signed_url(expiration=timedelta(minutes=10))
-        return RedirectResponse(signed_url)
-    
+        return {"questions": questions[:count]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-@app.get("/get-questions-list")
+def serialize_question(q):
+     return {
+        "id": q.get("id", str(q.get("_id"))),
+        "question": q.get("question", ""),
+        "answers": q.get("answers", []),
+        "correctAnswer": q.get("correctAnswer", ""),
+        "owner": q.get("owner", "")
+    }
+
+@app.get("/api/get-questions-list")
 def getQuestionList(isQuestionOnly: Optional[bool] = None, uid: Optional[str] = None):
     try:
-        default_snapshot = database.child("Questions").child("default_questions").get()
-        default_snapshot = default_snapshot if default_snapshot else {}
+        default_cursor = questions_collection.find({"owner": "default"})
+        default_list = list(default_cursor)
 
         if isQuestionOnly:
-            default_questions = [
-                val.get("question", "")
-                for val in default_snapshot.values()
-                if isinstance(val, dict)
-            ]
+            default_questions = [serialize_question(q) for q in default_list]
 
             user_questions = []
             if uid:
-                user_snapshot = database.child("Questions").child(uid).get()
-                if user_snapshot:
-                    user_questions = [
-                        val.get("question", "")
-                        for val in user_snapshot.values()
-                        if isinstance(val, dict)
-                    ]
+                user_cursor = questions_collection.find({"owner": uid})
+                user_questions = [q.get("question", "") for q in user_cursor]
 
             return {
                 "question_data": default_questions + user_questions
             }
 
         default_questions = [
-            {**val, "id": key}
-            for key, val in default_snapshot.items()
+            serialize_question(q) for q in default_list
         ]
 
         user_questions = []
         if uid:
-            user_snapshot = database.child("Questions").child(uid).get()
-            if user_snapshot:
-                user_questions = [
-                    {**val, "id": key}
-                    for key, val in user_snapshot.items()
-                ]
+            user_cursor = questions_collection.find({"owner": uid})
+            user_questions = [serialize_question(q) for q in user_cursor]
 
         return {
             "default_questions": default_questions,
             "user_questions": user_questions
         }
-    
+
     except Exception as e:
-        print(str(e))
         raise HTTPException(status_code=500, detail=str(e))
     
 @app.delete('/api/delete-question')
@@ -315,76 +334,23 @@ def deleteQuestion(data: DeleteRequest):
     try:
         uid = data.uid
         question_ids = data.question_ids
-        
+
         if not question_ids:
             raise HTTPException(status_code=400, detail="Danh sách câu hỏi rỗng.")
-        
-        updates = { f"{qid}": None for qid in question_ids }
 
-        ref = database.child('Questions').child(uid)
-        ref.update(updates)
+        result = questions_collection.delete_many({
+            "id": { "$in": question_ids },
+            "owner": uid
+        })
 
-        return { "message": f"Đã xóa {len(question_ids)} câu hỏi." }
-    
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Không tìm thấy câu hỏi để xóa.")
+
+        return { "message": f"Đã xóa {result.deleted_count} câu hỏi." }
+
     except Exception as e:
         print("✖ Delete error:", e)
         raise HTTPException(status_code=500, detail="Xóa nhiều câu hỏi thất bại.")
-    
-@app.post("/api/add-ai-question")
-async def addAIQuestion(req: Request):
-    body = await req.json()
-    questions = body.get("questions")
-    uid = body.get("uid")
-
-    # ⚠️ Kiểm tra thiếu uid hoặc questions phải làm ngay từ đầu
-    if not questions or not uid:
-        raise HTTPException(status_code=400, detail="Missing 'uid' or 'questions'")
-
-    # Parse danh sách câu hỏi nếu là JSON string
-    try:
-        if isinstance(questions, str):
-            questions_list = json.loads(questions)
-        else:
-            questions_list = questions
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON format in 'questions'")
-
-    # Kiểm tra định dạng danh sách câu hỏi
-    if not isinstance(questions_list, list):
-        raise HTTPException(status_code=400, detail="'questions' must be a list")
-
-    for q in questions_list:
-        if not isinstance(q, dict) or not all(k in q for k in ("question", "answers", "correctAnswer")):
-            raise HTTPException(status_code=400, detail="Invalid question format")
-
-    # Lấy danh sách các câu hỏi hiện tại (chỉ lấy field "question")
-    questions_data = getQuestionList(True, uid)
-
-    # Kiểm tra trùng lặp
-    is_duplicated = await questionDuplicateCheck(questions_data, questions_list)
-
-    if is_duplicated:
-        raise HTTPException(status_code=400, detail="Duplicated question(s) detected")
-
-    # Ghi vào database
-    try:
-        inserted_questions = []
-        timestamp = int(datetime.now().timestamp())
-
-        for idx, q in enumerate(questions_list):
-            question_key = f"{timestamp}_{idx}"
-            q["id"] = question_key
-            database.child("Questions").child(uid).child(question_key).set(q)
-            inserted_questions.append(q)
-
-        return {
-            "message": "Questions added successfully",
-            "questions": inserted_questions
-        }
-
-    except Exception as e:
-        print(str(e))
-        raise HTTPException(status_code=500, detail="Internal server error")
 
 async def questionDuplicateCheck(exist_questions: List[str], adding_questions: List[str]):
     new_question_texts = [q["question"] for q in adding_questions]
@@ -400,17 +366,24 @@ def updateQuestion(data: UpdateRequest):
         uid = data.uid
         question = data.question
 
+        print("UID:", uid)
         print("ID:", question.id)
-        
-        if not question:
+
+        if not question or not question.id:
             raise HTTPException(status_code=400, detail="Không tìm thấy câu hỏi cần cập nhật.")
-        
-        ref = database.child("Questions").child(uid).child(question.id)
-        ref.update(question.dict())
+
+        result = questions_collection.update_one(
+            {"id": question.id, "owner": uid},
+            {"$set": question.dict(exclude={"id"})}
+        )
+
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Không tìm thấy câu hỏi tương ứng.")
 
         return {"message": f"Đã cập nhật câu hỏi {question.id} thành công."}
+
     except Exception as e:
-        print("✖ Delete error:", e)
+        print("✖ Update error:", e)
         raise HTTPException(status_code=500, detail="Cập nhật câu hỏi thất bại.")
 
 

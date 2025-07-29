@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
 type Settings = {
+    id: string,
+    email: string,
     personal_inf: {
-        avatar: string;
+        avatar_url: string;
         displayName: string
     },
     general_settings: {

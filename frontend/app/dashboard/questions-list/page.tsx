@@ -7,19 +7,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { getAuth } from "firebase/auth";
 import { BookOpen, Plus, Save, Search, User } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useUserSettings } from '@/app/context/UserSettingContext';
 
 interface Question {
     id: string
     question: string
     answers: string[]
+    correctAnswer: string
+    owner: string
     // createdAt: string
 }
 
 export default function Page() {
+    const { settings: userSettings, setSettings } = useUserSettings();
+
     const [activeTab, setActiveTab] = useState("default")
     const [searchInput, setSearchInput] = useState("")
     const [defaultQuestions, setDefaultQuestions] = useState<Question[]>([])
@@ -37,22 +41,25 @@ export default function Page() {
 
     useEffect(() => {
         const getQuestion = async () => {
-            const auth = getAuth();
-            const user = auth.currentUser;
-            const uid = user?.uid;
+            const uid = userSettings?.id
+            if (uid) {
+                try {
+                    const res = await fetch(`/api/get-questions-list?uid=${uid}`)
+                    const data = await res.json()
+                    const default_questions_data = data.default_questions
+                    const user_question_data = data.user_questions
 
-            try {
-                const res = await fetch(`http://localhost:8000/get-questions-list?uid=${uid}`)
-                const data = await res.json()
-                const default_questions_data = data.default_questions
-                const user_question_data = data.user_questions
+                    setDefaultQuestions(default_questions_data)
+                    setUserQuestions(user_question_data)
 
-                setDefaultQuestions(default_questions_data)
-                setUserQuestions(user_question_data)
+                    console.log("Default:", default_questions_data)
+                    console.log("User:", user_question_data)
 
-            } catch (err) {
-                console.log(err)
+                } catch (err) {
+                    console.log(err)
+                }
             }
+
 
         }
 
@@ -177,12 +184,10 @@ export default function Page() {
         const confirmMessage = `Bạn có chắc chắn muốn xóa ${selectedQuestions.length} câu hỏi đã chọn?`
         console.log(selectedQuestions)
         if (confirm(confirmMessage)) {
-            const auth = getAuth();
-            const user = auth.currentUser;
-            const uid = user?.uid;
+            const uid = userSettings?.id
 
             try {
-                const res = await fetch('http://localhost:8000/api/delete-question', {
+                const res = await fetch('/api/delete-question', {
                     method: "DELETE",
                     headers: {
                         "Content-Type": "application/json",
@@ -234,11 +239,11 @@ export default function Page() {
         console.log("Upadating: ", updatedQuestion)
 
         try {
-            const auth = getAuth();
-            const user = auth.currentUser;
-            const uid = user?.uid;
+            const uid = userSettings?.id
 
-            const res = fetch('http://localhost:8000/api/update-question', {
+            if (!uid) return
+
+            const res = fetch('/api/update-question', {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",

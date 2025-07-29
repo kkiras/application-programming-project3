@@ -1,18 +1,15 @@
 FROM python:3.11-slim
 
-# Set workdir
 WORKDIR /app
 
-# Copy requirements and install dependencies
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir python-multipart==0.0.6
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend source code
-COPY backend .
+COPY . .
 
-# Expose backend port
-EXPOSE 8000
+CMD ["python", "main.py"]
 
-# Start FastAPI server
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+
+
+

@@ -1,4 +1,5 @@
 "use client";
+import { useUserSettings } from "@/app/context/UserSettingContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,6 @@ import { Textarea } from "@/components/ui/textarea";
 import clsx from "clsx";
 import { Check, Pencil, Save, Wand2 } from "lucide-react";
 import { useState } from "react";
-import { getAuth } from "firebase/auth";
 
 export default function Page() {
     type Question = {
@@ -23,6 +23,7 @@ export default function Page() {
         answers: ["", "", "", ""],
         correctAnswer: ""
     });
+    const { settings: userSettings, setSettings } = useUserSettings();
 
     const [questionType, setQuestionType] = useState("four-answers");
 
@@ -63,18 +64,16 @@ export default function Page() {
     }
 
     const handleGenerateQuestions = async () => {
-        const auth = getAuth();
-        const user = auth.currentUser;
-        const uid = user?.uid;
+        const uid = userSettings?.id
         try {
-            const response = await fetch(`http://localhost:8000/generate-questions?count=${aiQuestionCount}&uid=${uid}`);
+            const response = await fetch(`/api/generate-questions?count=${aiQuestionCount}&uid=${uid}`);
             if (!response.ok) {
                 throw new Error("Failed to generate questions");
             }
             const data = await response.json();
             console.log("Generated questions:", data);
-            if (Array.isArray(data.questions)) {
-                setAiQuestions(data.questions);
+            if (Array.isArray(data)) {
+                setAiQuestions(data);
             } else {
                 console.error("Invalid data format:", data);
                 setAiQuestions([]);
@@ -89,12 +88,10 @@ export default function Page() {
 
     const handleSaveQuestion = async () => {
         console.log(question)
-        const auth = getAuth();
-        const user = auth.currentUser;
-        const uid = user?.uid;
+        const uid = userSettings?.id
 
         try {
-            const res = await fetch("http://localhost:8000/api/add-question", {
+            const res = await fetch("/api/add-question", {
                 method: "POST",
                 headers: {
                     'Content-Type': 'application/json'
@@ -120,12 +117,10 @@ export default function Page() {
 
     const handleSaveAIQuestions = async () => {
         console.log(question)
-        const auth = getAuth();
-        const user = auth.currentUser;
-        const uid = user?.uid;
+        const uid = userSettings?.id
 
         try {
-            const res = await fetch("http://localhost:8000/api/add-ai-question", {
+            const res = await fetch("/api/add-question", {
                 method: "POST",
                 headers: {
                     'Content-Type': 'application/json'

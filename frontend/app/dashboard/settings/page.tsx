@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useUserSettings } from "@/app/context/UserSettingContext";
-import { getAuth } from "firebase/auth";
 
 
 export default function Page() {
@@ -71,9 +70,7 @@ export default function Page() {
     }
 
     const handleSaveChanges = async () => {
-        const auth = getAuth();
-        const user = auth.currentUser;
-        const uid = user?.uid;
+        const uid = userSettings?.id
 
         if (!uid) return;
 
@@ -90,7 +87,7 @@ export default function Page() {
         }
 
         try {
-            const res = await fetch("http://localhost:8000/api/save-settings", {
+            const res = await fetch("/api/save-settings", {
                 method: "POST",
                 body: formData
             });
@@ -107,7 +104,8 @@ export default function Page() {
                 general_settings: saved?.settings || userSettings!.general_settings,
                 personal_inf: {
                     ...userSettings!.personal_inf,
-                    ...(saved?.personal_inf || {})
+                    ...(saved?.personal_inf || {}),
+                    avatar_url: `${saved?.personal_inf?.avatar_url}?t=${Date.now()}`
                 }
             };
 
@@ -118,7 +116,7 @@ export default function Page() {
         }
     };
 
-    console.log("Avatar src:", userSettings?.personal_inf?.avatar)
+    console.log("Avatar src:", userSettings?.personal_inf?.avatar_url)
 
     return (
         <div>
@@ -132,10 +130,11 @@ export default function Page() {
 
                     <CardContent>
                         <div className="flex items-center gap-4">
-                            {(selectedImg || userSettings?.personal_inf?.avatar) ? (
+                            {(selectedImg || userSettings?.personal_inf?.avatar_url) ? (
                                 <Avatar className="w-20 h-20 rounded-full overflow-hidden">
                                     <AvatarImage
-                                        src={preview || `http://localhost:8000/avatars/${userSettings?.personal_inf.avatar}`}
+                                        src={preview || `${userSettings?.personal_inf.avatar_url}`}
+                                        key={userSettings?.personal_inf.avatar_url}
                                         alt=""
                                     />
                                     <AvatarFallback></AvatarFallback>

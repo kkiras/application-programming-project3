@@ -65,11 +65,11 @@ export default function ResultClient() {
     }
 
     const getScoreMessage = (score: number) => {
-        if (score >= 9) return "Xuất sắc! 🎉"
-        if (score >= 8) return "Rất tốt! 👏"
-        if (score >= 6) return "Khá tốt! 👍"
-        if (score >= 4) return "Cần cố gắng thêm! 💪"
-        return "Hãy ôn tập và thử lại! 📚"
+        if (score >= 9) return "Xuất sắc!"
+        if (score >= 8) return "Rất tốt!"
+        if (score >= 6) return "Khá tốt!"
+        if (score >= 4) return "Cần cố gắng thêm!"
+        return "Hãy ôn tập và thử lại!"
     }
 
     return (
